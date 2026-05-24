@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ServiceCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  icon        String?
+  sortOrder   Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  packages    Package[]
+}
+
+model Package {
+  id          String          @id @default(cuid())
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tier        String
+  name        String
+  description String?
+  price       Float
+  warranty    String?
+  features    String
+  sortOrder   Int             @default(0)
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  estimates   Estimate[]
+}
+
+model Customer {
+  id        String     @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  address   String?
+  city      String?
+  createdAt DateTime   @default(now())
+  estimates Estimate[]
+}
+
+model Estimate {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  packageId     String?
+  package       Package?  @relation(fields: [packageId], references: [id])
+  status        String    @default("draft")
+  notes         String?
+  signatureData String?
+  signedAt      DateTime?
+  totalAmount   Float?
+  customPrice   Float?
+  token         String    @unique @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  invoice       Invoice?
+}
+
+model Invoice {
+  id                    String    @id @default(cuid())
+  estimateId            String    @unique
+  estimate              Estimate  @relation(fields: [estimateId], references: [id])
+  status                String    @default("pending")
+  totalAmount           Float
+  paidAmount            Float     @default(0)
+  stripePaymentIntentId String?
+  stripeSessionId       String?
+  paidAt                DateTime?
+  receiptSentAt         DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
