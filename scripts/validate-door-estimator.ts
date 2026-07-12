@@ -3,7 +3,8 @@ import { calculateDoorPrice, SUPPORTED_HEIGHTS, SUPPORTED_WIDTHS } from "../lib/
 import type { DoorSelection } from "../lib/door-estimator/types"
 
 const example = { quantity: 1, width: 9, height: 7, constructionCode: "essential", styleCode: "traditional-raised", colorCode: "white", windowCode: "none", openerCode: "keep-existing" } satisfies DoorSelection
-const price = calculateDoorPrice({ ...config, priceRows: [...config.priceRows, { constructionCode: "essential", finishTier: "standard", widthGroup: "9", height: 7, vendorCost: 900, active: true }] }, example, "website")
+const testConfig = { ...config, priceRows: config.priceRows.map(row => row.constructionCode === "essential" && row.finishTier === "standard" && row.widthGroup === "9" && row.height === 7 ? { ...row, vendorCost: 900 } : row) }
+const price = calculateDoorPrice(testConfig, example, "website")
 if (price.retailPrice !== 2699) throw new Error(`Expected $2,699 from $900, received ${price.retailPrice}`)
 
 let combinations = 0
