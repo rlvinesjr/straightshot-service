@@ -11,3 +11,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 deploy/app.zip
+
+# local test artifacts
+start.log
+prisma/data/
+data/
+*.log
