@@ -3,6 +3,18 @@ import { DEFAULT_DOOR_ESTIMATOR_CONFIG } from "./default-config"
 import type { DoorEstimatorConfig } from "./types"
 
 const CONFIG_ID = "default"
+const supplementalColors: DoorEstimatorConfig["colors"] = [
+  { code: "walnut", publicName: "Walnut", swatch: "#6d2f20", finishTier: "wood", styleCodes: ["short-recessed","carriage-short","carriage-long","louvered","long-recessed"], websiteEnabled: true, fieldEnabled: true, active: true },
+  { code: "driftwood", publicName: "Driftwood", swatch: "#77766e", finishTier: "wood", styleCodes: ["short-recessed","carriage-short","carriage-long","louvered","long-recessed"], websiteEnabled: true, fieldEnabled: true, active: true },
+  { code: "plank-walnut", publicName: "Walnut", swatch: "#5a241c", finishTier: "plank", styleCodes: ["horizontal-plank"], constructionCodes: ["premium"], websiteEnabled: true, fieldEnabled: true, active: true },
+  { code: "plank-driftwood", publicName: "Driftwood", swatch: "#5a5b59", finishTier: "plank", styleCodes: ["horizontal-plank"], constructionCodes: ["premium"], websiteEnabled: true, fieldEnabled: true, active: true },
+  { code: "plank-cypress", publicName: "Cypress", swatch: "#7f3a29", finishTier: "plank", styleCodes: ["horizontal-plank"], constructionCodes: ["premium"], websiteEnabled: true, fieldEnabled: true, active: true },
+]
+
+function normalizeConfig(config: DoorEstimatorConfig): DoorEstimatorConfig {
+  const existing = new Set(config.colors.map(color => color.code))
+  return { ...config, colors: [...config.colors, ...supplementalColors.filter(color => !existing.has(color.code))] }
+}
 
 export async function loadDoorEstimatorConfig(): Promise<DoorEstimatorConfig> {
   const record = await db.doorEstimatorConfig.upsert({
@@ -19,13 +31,13 @@ export async function loadDoorEstimatorConfig(): Promise<DoorEstimatorConfig> {
       catalogJson: JSON.stringify(DEFAULT_DOOR_ESTIMATOR_CONFIG),
     },
   })
-  const parsed = JSON.parse(record.catalogJson) as DoorEstimatorConfig
+  const parsed = normalizeConfig(JSON.parse(record.catalogJson) as DoorEstimatorConfig)
   return { ...parsed, version: record.version, pricebookName: record.pricebookName, effectiveDate: record.effectiveDate ? record.effectiveDate.toISOString().slice(0, 10) : parsed.effectiveDate, multiplier: record.multiplier, roundingMethod: record.roundingMethod as DoorEstimatorConfig["roundingMethod"], removalIncluded: record.removalIncluded }
 }
 
 export async function saveDoorEstimatorConfig(incoming: DoorEstimatorConfig): Promise<DoorEstimatorConfig> {
   const current = await loadDoorEstimatorConfig()
-  const next = { ...incoming, version: current.version + 1 }
+  const next = normalizeConfig({ ...incoming, version: current.version + 1 })
   await db.doorEstimatorConfig.update({
     where: { id: CONFIG_ID },
     data: { version: next.version, pricebookName: next.pricebookName, effectiveDate: next.effectiveDate ? new Date(`${next.effectiveDate}T00:00:00.000Z`) : null, multiplier: next.multiplier, roundingMethod: next.roundingMethod, removalIncluded: next.removalIncluded, catalogJson: JSON.stringify(next) },
