@@ -24,15 +24,14 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
   const windows = useMemo(() => catalog.windows.filter(item => style && item.groups.includes(style.windowGroup) && (!item.constructionCodes || item.constructionCodes.includes(selection.constructionCode))), [catalog.windows, style, selection.constructionCode])
   const selectedColor = colors.find(x => x.code === selection.colorCode) ?? colors[0]
 
-  useEffect(() => {
-    if (style && style.code !== selection.styleCode) setSelection(current => ({ ...current, styleCode: style.code }))
-  }, [style, selection.styleCode])
-  useEffect(() => {
-    if (selectedColor && selectedColor.code !== selection.colorCode) setSelection(current => ({ ...current, colorCode: selectedColor.code }))
-  }, [selectedColor, selection.colorCode])
-  useEffect(() => {
-    if (!windows.some(x => x.code === selection.windowCode)) setSelection(current => ({ ...current, windowCode: windows[0]?.code ?? "none" }))
-  }, [windows, selection.windowCode])
+  // Resolve the raw selection against the currently valid option lists at render
+  // time instead of syncing state in effects, so pricing always uses valid codes.
+  const effectiveSelection = useMemo<DoorSelection>(() => ({
+    ...selection,
+    styleCode: style?.code ?? selection.styleCode,
+    colorCode: selectedColor?.code ?? selection.colorCode,
+    windowCode: windows.some(x => x.code === selection.windowCode) ? selection.windowCode : (windows[0]?.code ?? "none"),
+  }), [selection, style, selectedColor, windows])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -43,7 +42,7 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
         const response = await fetch("/api/door-estimator/calculate", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(mode === "field" && key ? { "X-Door-Estimator-Key": key } : {}) },
-          body: JSON.stringify({ mode, selection, includeInternal: mode === "field" && Boolean(key) }),
+          body: JSON.stringify({ mode, selection: effectiveSelection, includeInternal: mode === "field" && Boolean(key) }),
           signal: controller.signal,
         })
         const data = await response.json()
@@ -54,7 +53,7 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
       } finally { setLoading(false) }
     }, 200)
     return () => { clearTimeout(timer); controller.abort() }
-  }, [selection, mode, key])
+  }, [effectiveSelection, mode, key])
 
   function chooseConstruction(code: ConstructionCode) {
     const nextStyle = catalog.styles.find(x => x.constructionCodes.includes(code))
@@ -73,7 +72,7 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
     const response = await fetch("/api/door-estimator/estimates", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(mode === "field" ? { "X-Door-Estimator-Key": key } : {}) },
-      body: JSON.stringify({ mode, selection, customer }),
+      body: JSON.stringify({ mode, selection: effectiveSelection, customer }),
     })
     const data = await response.json()
     if (!response.ok) return setError(data.error || "Unable to save estimate")
@@ -113,11 +112,11 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
 
             <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">2. Construction</h2><div className="grid gap-3 md:grid-cols-3">{catalog.constructions.map(item => <button key={item.code} onClick={() => chooseConstruction(item.code)} className={`${button} ${selection.constructionCode === item.code ? "border-[#00FF47] bg-[#00ff4710]" : "border-zinc-800"}`}><span className="text-xs font-bold uppercase text-[#00FF47]">{item.eyebrow}</span><strong className="mt-1 block text-white">{item.publicName}</strong><span className="mt-1 block text-sm text-zinc-400">{item.description}</span></button>)}</div></section>
 
-            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">3. Door style</h2><div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">{styles.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, styleCode: item.code, colorCode: "white", windowCode: "none" })} className={`${button} ${selection.styleCode === item.code ? "border-[#00FF47]" : "border-zinc-800"}`}><div className="mb-3 aspect-[16/9] rounded-lg border-4 border-zinc-800 bg-zinc-200 p-2"><div className="grid h-full grid-rows-4 gap-1">{[0,1,2,3].map(row => <div key={row} className="grid grid-cols-4 gap-1">{[0,1,2,3].map(col => <span key={col} className="rounded-sm border border-zinc-500" style={{ background: selectedColor?.swatch ?? "#eee" }} />)}</div>)}</div></div><strong>{item.publicName}</strong><span className="mt-1 block text-xs text-zinc-500">{item.category}</span></button>)}</div></section>
+            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">3. Door style</h2><div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">{styles.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, styleCode: item.code, colorCode: "white", windowCode: "none" })} className={`${button} ${effectiveSelection.styleCode === item.code ? "border-[#00FF47]" : "border-zinc-800"}`}><div className="mb-3 aspect-[16/9] rounded-lg border-4 border-zinc-800 bg-zinc-200 p-2"><div className="grid h-full grid-rows-4 gap-1">{[0,1,2,3].map(row => <div key={row} className="grid grid-cols-4 gap-1">{[0,1,2,3].map(col => <span key={col} className="rounded-sm border border-zinc-500" style={{ background: selectedColor?.swatch ?? "#eee" }} />)}</div>)}</div></div><strong>{item.publicName}</strong><span className="mt-1 block text-xs text-zinc-500">{item.category}</span></button>)}</div></section>
 
-            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">4. Color</h2><div className="flex flex-wrap gap-3">{colors.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, colorCode: item.code })} className={`rounded-xl border p-2 ${selection.colorCode === item.code ? "border-[#00FF47]" : "border-zinc-700"}`}><span className="block h-12 w-16 rounded-lg border border-zinc-500" style={{ background: item.swatch }} /><span className="mt-1 block text-xs">{item.publicName}</span></button>)}</div></section>
+            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">4. Color</h2><div className="flex flex-wrap gap-3">{colors.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, colorCode: item.code })} className={`rounded-xl border p-2 ${effectiveSelection.colorCode === item.code ? "border-[#00FF47]" : "border-zinc-700"}`}><span className="block h-12 w-16 rounded-lg border border-zinc-500" style={{ background: item.swatch }} /><span className="mt-1 block text-xs">{item.publicName}</span></button>)}</div></section>
 
-            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">5. Windows</h2><div className="grid gap-3 sm:grid-cols-2">{windows.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, windowCode: item.code })} className={`${button} ${selection.windowCode === item.code ? "border-[#00FF47]" : "border-zinc-800"}`}><strong>{item.publicName}</strong><span className="mt-1 block text-sm text-zinc-400">{item.description}</span></button>)}</div></section>
+            <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">5. Windows</h2><div className="grid gap-3 sm:grid-cols-2">{windows.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, windowCode: item.code })} className={`${button} ${effectiveSelection.windowCode === item.code ? "border-[#00FF47]" : "border-zinc-800"}`}><strong>{item.publicName}</strong><span className="mt-1 block text-sm text-zinc-400">{item.description}</span></button>)}</div></section>
 
             <section className={card}><h2 className="mb-3 text-xl font-black uppercase text-white">6. Garage door opener</h2><div className="grid gap-3 sm:grid-cols-2">{catalog.openers.map(item => <button key={item.code} onClick={() => setSelection({ ...selection, openerCode: item.code })} className={`${button} ${selection.openerCode === item.code ? "border-[#00FF47]" : "border-zinc-800"}`}><strong>{item.publicName}</strong><span className="mt-1 block text-sm text-zinc-400">{item.description}</span></button>)}</div></section>
           </div>
