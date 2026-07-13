@@ -31,6 +31,8 @@ export type DoorConstruction = {
   rValue: number | null
   finishTiers: FinishTier[]
   active: boolean
+  /** Distributor/manufacturer reference. Admin API only — stripped from public catalogs. */
+  internalRef?: string
 }
 
 export type DoorColor = {
@@ -67,6 +69,8 @@ export type OpenerOption = {
   websiteEnabled: boolean
   fieldEnabled: boolean
   active: boolean
+  /** Distributor/manufacturer part reference. Admin API only — stripped from public catalogs. */
+  internalRef?: string
 }
 
 export type DoorPriceRow = {
@@ -87,6 +91,10 @@ export type DoorEstimatorConfig = {
   priceEnding: number
   removalIncluded: boolean
   websiteDisclaimer: string
+  /** Distributor / price-sheet source. Admin API only — never sent to public catalogs. */
+  distributorName?: string
+  /** Internal legend explaining finish-tier → price-sheet column mapping. Admin API only. */
+  internalNotes?: string
   constructions: DoorConstruction[]
   styles: DoorStyle[]
   colors: DoorColor[]

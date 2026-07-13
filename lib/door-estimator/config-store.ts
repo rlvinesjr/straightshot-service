@@ -13,7 +13,19 @@ const supplementalColors: DoorEstimatorConfig["colors"] = [
 
 function normalizeConfig(config: DoorEstimatorConfig): DoorEstimatorConfig {
   const existing = new Set(config.colors.map(color => color.code))
-  return { ...config, colors: [...config.colors, ...supplementalColors.filter(color => !existing.has(color.code))] }
+  // Internal distributor/part references are code-managed: overlay them from the
+  // default config on every load so stored price books stay current without a
+  // republish. They are stripped from public catalogs in sanitizeCatalog.
+  const refFor = <T extends { code: string; internalRef?: string }>(items: T[], defaults: T[]) =>
+    items.map(item => ({ ...item, internalRef: defaults.find(d => d.code === item.code)?.internalRef ?? item.internalRef }))
+  return {
+    ...config,
+    distributorName: DEFAULT_DOOR_ESTIMATOR_CONFIG.distributorName,
+    internalNotes: DEFAULT_DOOR_ESTIMATOR_CONFIG.internalNotes,
+    constructions: refFor(config.constructions, DEFAULT_DOOR_ESTIMATOR_CONFIG.constructions),
+    openers: refFor(config.openers, DEFAULT_DOOR_ESTIMATOR_CONFIG.openers),
+    colors: [...config.colors, ...supplementalColors.filter(color => !existing.has(color.code))],
+  }
 }
 
 export async function loadDoorEstimatorConfig(): Promise<DoorEstimatorConfig> {

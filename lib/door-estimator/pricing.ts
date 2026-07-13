@@ -62,6 +62,8 @@ export function calculateDoorPrice(config: DoorEstimatorConfig, selection: DoorS
 
 export function sanitizeCatalog(config: DoorEstimatorConfig, mode: "website" | "field"): PublicDoorCatalog {
   const enabled = <T extends { active: boolean; websiteEnabled?: boolean; fieldEnabled?: boolean }>(item: T) => item.active && (mode === "website" ? item.websiteEnabled !== false : item.fieldEnabled !== false)
+  // Never let internal distributor/part references reach a public catalog.
+  const stripRef = <T extends { internalRef?: string }>(item: T) => { const clone = { ...item }; delete clone.internalRef; return clone }
   return {
     version: config.version,
     pricebookName: config.pricebookName,
@@ -70,11 +72,11 @@ export function sanitizeCatalog(config: DoorEstimatorConfig, mode: "website" | "
     priceEnding: config.priceEnding,
     removalIncluded: config.removalIncluded,
     websiteDisclaimer: config.websiteDisclaimer,
-    constructions: config.constructions.filter(x => x.active),
+    constructions: config.constructions.filter(x => x.active).map(stripRef),
     styles: config.styles.filter(enabled),
     colors: config.colors.filter(enabled),
     windows: config.windows.filter(enabled).map(x => ({ ...x, costs: {} })),
-    openers: config.openers.filter(enabled).map(x => ({ ...x, costsByHeight: {} })),
+    openers: config.openers.filter(enabled).map(x => stripRef({ ...x, costsByHeight: {} })),
     widths: SUPPORTED_WIDTHS,
     heights: SUPPORTED_HEIGHTS,
   }
