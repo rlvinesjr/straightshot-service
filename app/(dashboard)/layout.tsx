@@ -29,11 +29,15 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  // The public deployment exposes only /door-estimator*; keep other dashboard
+  // destinations out of the nav there so nothing links to a blocked route.
+  const isDoors = pathname.startsWith("/door-estimator")
+  const items = isDoors ? navItems.filter(item => item.dashboardOnly) : navItems
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#222222] bg-[#111111] px-4 py-3">
-        <Link href="/packages" className="flex items-center gap-3">
+        <Link href={isDoors ? "/door-estimator/field" : "/packages"} className="flex items-center gap-3">
           <svg viewBox="0 0 32 32" fill="none" className="h-8 w-8"><rect width="32" height="32" rx="6" fill="#00FF47" /><text x="16" y="23" textAnchor="middle" fontSize="18" fontWeight="900" fill="#000" fontFamily="sans-serif">S</text></svg>
           <div><p className="text-lg font-black uppercase leading-none tracking-wide text-white" style={{ fontFamily: "var(--font-heading)" }}>StraightShot</p><p className="text-xs leading-none text-[#00FF47]">Overhead</p></div>
         </Link>
@@ -43,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 overflow-y-auto pb-20">{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-[#222222] bg-[#111111]">
-        {navItems.map(item => {
+        {items.map(item => {
           const href = item.dashboardOnly ? "/door-estimator/field" : item.href
           const isActive = item.dashboardOnly
             ? pathname.startsWith("/door-estimator")
