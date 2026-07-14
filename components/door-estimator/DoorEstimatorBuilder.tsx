@@ -14,8 +14,8 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState("")
+  const [downloading, setDownloading] = useState(false)
   const [key, setKey] = useState("")
-  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "", city: "" })
 
   const construction = catalog.constructions.find(x => x.code === selection.constructionCode)
   const styles = useMemo(() => catalog.styles.filter(style => style.constructionCodes.includes(selection.constructionCode)), [catalog.styles, selection.constructionCode])
@@ -72,11 +72,41 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
     const response = await fetch("/api/door-estimator/estimates", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(mode === "field" ? { "X-Door-Estimator-Key": key } : {}) },
-      body: JSON.stringify({ mode, selection: effectiveSelection, customer }),
+      body: JSON.stringify({ mode, selection: effectiveSelection, customer: {} }),
     })
     const data = await response.json()
     if (!response.ok) return setError(data.error || "Unable to save estimate")
     setSaved(`Estimate saved — ${money.format(data.retailPrice)}`)
+  }
+
+  // Website mode: no contact info collected — the estimate PDF downloads directly.
+  async function downloadEstimate() {
+    setSaved("")
+    setError("")
+    setDownloading(true)
+    try {
+      const response = await fetch("/api/door-estimator/document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selection: effectiveSelection }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        setError(data.error || "Unable to create the estimate document")
+        return
+      }
+      const url = URL.createObjectURL(await response.blob())
+      const link = document.createElement("a")
+      link.href = url
+      link.download = "StraightShot-Garage-Door-Estimate.pdf"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setSaved("Estimate downloaded — check your downloads folder.")
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const card = "rounded-2xl border border-zinc-800 bg-zinc-950 p-4"
@@ -128,10 +158,18 @@ export default function DoorEstimatorBuilder({ catalog, mode }: Props) {
               <p className="mt-3 text-sm text-zinc-400">Includes standard installation, removal, and disposal.</p>
               <dl className="mt-5 space-y-2 border-t border-zinc-800 pt-4 text-sm"><div className="flex justify-between"><dt>Size</dt><dd>{selection.width}×{selection.height}</dd></div><div className="flex justify-between"><dt>Construction</dt><dd>{construction?.publicName}</dd></div><div className="flex justify-between"><dt>Style</dt><dd className="text-right">{style?.publicName}</dd></div><div className="flex justify-between"><dt>Quantity</dt><dd>{selection.quantity}</dd></div></dl>
               {mode === "field" && price?.totalVendorCost !== undefined && <div className="mt-4 rounded-xl bg-zinc-900 p-3 text-sm"><div className="flex justify-between"><span>Vendor cost</span><strong>{money.format(price.totalVendorCost)}</strong></div><div className="mt-1 flex justify-between"><span>Gross profit</span><strong>{money.format(price.grossProfit ?? 0)}</strong></div><div className="mt-1 flex justify-between"><span>Gross margin</span><strong>{((price.grossMargin ?? 0) * 100).toFixed(1)}%</strong></div></div>}
-              {mode === "website" && <div className="mt-5 space-y-3"><input placeholder="Name" value={customer.name} onChange={e => setCustomer({ ...customer, name: e.target.value })} className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" /><input placeholder="Phone" value={customer.phone} onChange={e => setCustomer({ ...customer, phone: e.target.value })} className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" /><input placeholder="Email" value={customer.email} onChange={e => setCustomer({ ...customer, email: e.target.value })} className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" /></div>}
-              <button onClick={saveEstimate} disabled={!price || (mode === "field" && !key)} className="mt-5 w-full rounded-xl bg-[#00FF47] px-4 py-4 font-black uppercase text-black disabled:opacity-40">{mode === "website" ? "Save My Estimate" : "Create Field Estimate"}</button>
+              <button onClick={mode === "website" ? downloadEstimate : saveEstimate} disabled={!price || downloading || (mode === "field" && !key)} className="mt-5 w-full rounded-xl bg-[#00FF47] px-4 py-4 font-black uppercase text-black disabled:opacity-40">{mode === "website" ? (downloading ? "Preparing…" : "Download My Estimate (PDF)") : "Create Field Estimate"}</button>
+              {mode === "website" && <p className="mt-3 text-center text-xs text-zinc-500">No name, phone, or email required — this estimate is yours to keep.</p>}
               {saved && <p className="mt-3 text-sm font-bold text-[#00FF47]">{saved}</p>}
               {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+              {mode === "website" && <div className="mt-5 border-t border-zinc-800 pt-5">
+                <p className="text-sm font-bold uppercase tracking-widest text-white">Ready to make it real?</p>
+                <a href="tel:9032451182" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#00FF47] px-4 py-4 font-black uppercase text-[#00FF47] transition-colors hover:bg-[#00FF47] hover:text-black">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.27 16.18z"/></svg>
+                  Call to Schedule
+                </a>
+                <p className="mt-2 text-center text-xs text-zinc-500">(903) 245-1182 — free on-site consultation, exact quote</p>
+              </div>}
               <p className="mt-4 text-xs leading-relaxed text-zinc-500">{catalog.websiteDisclaimer}</p>
             </div>
           </aside>
