@@ -22,17 +22,15 @@ export default async function PublicDoorEstimatorPage() {
     <>
       <header className="sticky top-0 z-20 border-b border-[#222222] bg-black/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-          <a href="https://straightshotoverhead.com" className="group flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#00FF47] text-lg font-black text-black">S</span>
-            <span className="leading-tight">
-              <span className="block text-sm font-black uppercase tracking-wide text-white" style={{ fontFamily: "var(--font-heading)" }}>StraightShot Overhead</span>
-              <span className="block text-xs text-[#00FF47] group-hover:underline">&larr; Back to straightshotoverhead.com</span>
-            </span>
+          <a href="https://straightshotoverhead.com" className="group flex flex-col items-start gap-0.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="StraightShot Overhead" className="h-9 w-auto" />
+            <span className="text-xs font-semibold text-[#00FF47] group-hover:underline">&larr; Back to straightshotoverhead.com</span>
           </a>
-          <nav aria-label="Garage door buying guides" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
-            <span className="hidden text-[#888888] sm:inline">Choosing a door?</span>
+          <nav aria-label="Garage door buying guides" className="flex flex-wrap items-center gap-2">
+            <span className="hidden text-[13px] text-[#888888] md:inline">Choosing a door?</span>
             {GUIDES.map(g => (
-              <a key={g.href} href={g.href} target="_blank" rel="noopener" className="text-[#CCCCCC] underline-offset-2 hover:text-[#00FF47] hover:underline">{g.label}</a>
+              <a key={g.href} href={g.href} target="_blank" rel="noopener" className="rounded-full border border-[#00FF47]/50 bg-[#00FF47]/10 px-3.5 py-1.5 text-[13px] font-bold text-[#00FF47] transition-colors hover:bg-[#00FF47] hover:text-black">{g.label}</a>
             ))}
           </nav>
         </div>
