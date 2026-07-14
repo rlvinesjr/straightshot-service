@@ -78,3 +78,38 @@ model Invoice {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }
+
+model DoorEstimatorConfig {
+  id              String   @id @default("default")
+  version         Int      @default(1)
+  pricebookName   String
+  effectiveDate   DateTime?
+  multiplier      Float    @default(3)
+  roundingMethod  String   @default("nearest_hundred_minus_one")
+  removalIncluded Boolean  @default(true)
+  catalogJson     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DoorEstimate {
+  id                  String    @id @default(cuid())
+  token               String    @unique @default(cuid())
+  mode                String
+  status              String    @default("draft")
+  customerName        String?
+  phone               String?
+  email               String?
+  address             String?
+  city                String?
+  configurationJson   String
+  vendorCostSnapshot  Float
+  retailPriceSnapshot Float
+  pricingSnapshotJson String
+  notes               String?
+  signatureData       String?
+  signedAt             DateTime?
+  convertedEstimateId String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
