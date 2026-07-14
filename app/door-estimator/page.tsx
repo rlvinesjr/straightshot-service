@@ -24,7 +24,7 @@ export default async function PublicDoorEstimatorPage() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <a href="https://straightshotoverhead.com" className="group flex flex-col items-start gap-0.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="StraightShot Overhead" className="h-9 w-auto" />
+            <img src="/logo.png" alt="StraightShot Overhead" className="h-10 w-auto" />
             <span className="text-xs font-semibold text-[#00FF47] group-hover:underline">&larr; Back to straightshotoverhead.com</span>
           </a>
           <nav aria-label="Garage door buying guides" className="flex flex-wrap items-center gap-2">
