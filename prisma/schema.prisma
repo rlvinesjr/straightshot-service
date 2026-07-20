@@ -102,6 +102,13 @@ model DoorEstimate {
   email               String?
   address             String?
   city                String?
+  zip                 String?
+  timeline            String?
+  source              String?
+  emailOptOut         Boolean   @default(false)
+  dripStage           Int       @default(0)
+  nextDripAt          DateTime?
+  lastEmailAt         DateTime?
   configurationJson   String
   vendorCostSnapshot  Float
   retailPriceSnapshot Float

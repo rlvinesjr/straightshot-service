@@ -6,8 +6,8 @@ import { sanitizeCatalog } from "@/lib/door-estimator/pricing"
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
-  title: "Garage Door Estimator | StraightShot Overhead",
-  description: "Build a residential garage door and get a preliminary installed price.",
+  title: "Garage Door Cost Calculator for East Texas | StraightShot Overhead",
+  description: "See what your new garage door should cost — including standard installation, removal, and disposal — in about 60 seconds. Free preliminary installed pricing for East Texas homes.",
 }
 
 const GUIDES = [
