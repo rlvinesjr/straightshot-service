@@ -13,24 +13,21 @@ function makeReader(getSocket: () => net.Socket | tls.TLSSocket) {
   let failed: Error | null = null
 
   const flush = () => {
-    // SMTP replies end with "NNN " (space after code on the final line)
-    let index
-    while ((index = buffer.indexOf("\r\n")) !== -1) {
-      const upTo = buffer.slice(0, index)
-      const lastLine = upTo.split("\r\n").pop() ?? ""
-      if (/^\d{3} /.test(lastLine)) {
-        const text = buffer.slice(0, index)
-        buffer = buffer.slice(index + 2)
-        const code = Number(lastLine.slice(0, 3))
-        pending.shift()?.({ code, text })
-      } else if (/^\d{3}-/.test(lastLine)) {
-        // multiline continuation — wait for more data within this reply
-        const next = buffer.indexOf("\r\n", index + 2)
-        if (next === -1) return
-        continue
-      } else {
-        buffer = buffer.slice(index + 2)
+    // An SMTP reply is one or more CRLF lines; "NNN-" lines continue it and a
+    // "NNN " line terminates it. Consume exactly one full reply per resolver.
+    while (pending.length) {
+      const lines = buffer.split("\r\n")
+      let consumed = 0
+      let terminator = -1
+      for (let i = 0; i < lines.length - 1; i++) { // last element may be a partial line
+        consumed += lines[i].length + 2
+        if (/^\d{3} /.test(lines[i]) || /^\d{3}$/.test(lines[i])) { terminator = i; break }
       }
+      if (terminator === -1) return // reply not complete yet — wait for more data
+      const text = buffer.slice(0, consumed - 2)
+      buffer = buffer.slice(consumed)
+      const code = Number(lines[terminator].slice(0, 3))
+      pending.shift()?.({ code, text })
     }
   }
 
