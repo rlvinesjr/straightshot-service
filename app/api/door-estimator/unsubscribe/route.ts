@@ -6,10 +6,16 @@ export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get("token") ?? ""
   let message = "We couldn't find that subscription — you may already be unsubscribed."
   if (token) {
-    const record = await db.doorEstimate.findUnique({ where: { token } })
-    if (record) {
-      await db.doorEstimate.update({ where: { id: record.id }, data: { emailOptOut: true, nextDripAt: null } })
+    const door = await db.doorEstimate.findUnique({ where: { token } })
+    if (door) {
+      await db.doorEstimate.update({ where: { id: door.id }, data: { emailOptOut: true, nextDripAt: null } })
       message = "You're unsubscribed. No more emails about this estimate — your report link keeps working if you ever need it."
+    } else {
+      const tuneup = await db.tuneUpLead.findUnique({ where: { token } })
+      if (tuneup) {
+        await db.tuneUpLead.update({ where: { id: tuneup.id }, data: { emailOptOut: true, nextDripAt: null } })
+        message = "You're unsubscribed. No more emails about your Noise & Safety Check."
+      }
     }
   }
   return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Unsubscribed | StraightShot Overhead</title></head>

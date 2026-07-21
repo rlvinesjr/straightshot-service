@@ -92,6 +92,27 @@ model DoorEstimatorConfig {
   updatedAt       DateTime @updatedAt
 }
 
+model TuneUpLead {
+  id           String    @id @default(cuid())
+  token        String    @unique @default(cuid())
+  status       String    @default("quiz")
+  firstName    String
+  email        String?
+  phone        String?
+  zip          String?
+  score        Int
+  tier         String
+  answersJson  String
+  preferredDay String?
+  preferredWindow String?
+  emailOptOut  Boolean   @default(false)
+  dripStage    Int       @default(0)
+  nextDripAt   DateTime?
+  lastEmailAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
 model DoorEstimate {
   id                  String    @id @default(cuid())
   token               String    @unique @default(cuid())
