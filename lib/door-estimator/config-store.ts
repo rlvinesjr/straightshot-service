@@ -24,6 +24,12 @@ function normalizeConfig(config: DoorEstimatorConfig): DoorEstimatorConfig {
     internalNotes: DEFAULT_DOOR_ESTIMATOR_CONFIG.internalNotes,
     constructions: refFor(config.constructions, DEFAULT_DOOR_ESTIMATOR_CONFIG.constructions),
     openers: refFor(config.openers, DEFAULT_DOOR_ESTIMATOR_CONFIG.openers),
+    // style photos are code-managed too — overlay them so price books published
+    // before the images existed still render photos everywhere
+    styles: config.styles.map(style => ({
+      ...style,
+      imagePath: style.imagePath || DEFAULT_DOOR_ESTIMATOR_CONFIG.styles.find(s => s.code === style.code)?.imagePath || "",
+    })),
     colors: [...config.colors, ...supplementalColors.filter(color => !existing.has(color.code))],
   }
 }
