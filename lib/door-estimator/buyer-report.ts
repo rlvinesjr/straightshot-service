@@ -190,7 +190,7 @@ export async function buildBuyerReport(config: DoorEstimatorConfig, selection: D
 
     page.drawText("What could change the estimate?", { x: MARGIN, y, size: 13, font: bold, color: BLACK })
     y -= 17
-    y = para(ctx, page, y, "The final written price depends on verified measurements, access, framing, electrical or structural conditions, product availability, and any separately approved opener work. We know the worry with online prices — a teaser number that grows on install day. That is not how we work.", { color: GRAY })
+    y = para(ctx, page, y, "The final written price depends on verified measurements, access, site conditions, product availability, and any separately approved opener work. We know the worry with online prices — a teaser number that grows on install day. That is not how we work.", { color: GRAY })
     y -= 4
     y = para(ctx, page, y, "Our promise: you will see the written total before work begins. No mystery add-ons and no additional work without your approval.", { font: bold, size: 10.5 })
     y -= 10
@@ -264,7 +264,6 @@ export async function buildBuyerReport(config: DoorEstimatorConfig, selection: D
       if (v && v.retailPrice < breakdown.retailPrice) savers.push(`Step down one construction level — new estimate ${money.format(v.retailPrice)} (saves ${money.format(breakdown.retailPrice - v.retailPrice)})`)
     }
     if (color.code !== "white") savers.push("Standard white finish is our most budget-friendly color option")
-    savers.push("Avoid structural, framing, or electrical changes where none are needed")
     if (savers.length < 3) savers.unshift("You've already configured this build close to its most budget-friendly form")
     for (const saver of savers.slice(0, 4)) y = check(ctx, page, MARGIN, y, saver, 10)
     y -= 8
@@ -286,7 +285,7 @@ export async function buildBuyerReport(config: DoorEstimatorConfig, selection: D
 
     page.drawText("Quick opener checklist — what we evaluate at the measurement", { x: MARGIN, y, size: 13, font: bold, color: BLACK })
     y -= 17
-    const opChecks = ["Is the opener properly sized for the new, heavier door?", "Does it run smoothly and consistently?", "Do the safety sensors and reversal system pass testing?", "Are the rail, controls, and wiring in serviceable condition?"]
+    const opChecks = ["Does it run smoothly and consistently?", "Do the safety sensors and reversal system pass testing?", "Are the rail, controls, and wiring in serviceable condition?"]
     for (const item of opChecks) {
       page.drawRectangle({ x: MARGIN, y: y - 1, width: 10, height: 10, borderColor: GRAY, borderWidth: 1 })
       y = para(ctx, page, y, item, { x: MARGIN + 18, size: 9.5 }) - 3
@@ -336,7 +335,7 @@ export async function buildBuyerReport(config: DoorEstimatorConfig, selection: D
     y -= 17
     const steps: Array<[string, string]> = [
       ["1. Reserve a measurement", "about 30 minutes, at a time that suits you."],
-      ["2. We measure and inspect", "opening, clearances, framing, access, and your current opener."],
+      ["2. We measure and inspect", "opening, clearances, access, and your current opener."],
       ["3. We confirm the build", "your exact configuration, availability, and opener recommendation."],
       ["4. You get a written quote", "price, inclusions, warranties, and options — before approving anything."],
     ]

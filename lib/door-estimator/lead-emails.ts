@@ -148,7 +148,7 @@ export function dripEmail(stage: number, lead: LeadRecord): { subject: string; h
       subject: `${f}, ready to turn your ${money.format(lead.retailPriceSnapshot)} estimate into an exact quote?`,
       html: shell(`
         <h2 style="margin:0 0 12px">The last step is a tape measure</h2>
-        <p>Your online estimate of <strong>${money.format(lead.retailPriceSnapshot)}</strong> is a realistic starting point. What it can't see: your exact opening, side room, headroom, track condition, framing, and opener.</p>
+        <p>Your online estimate of <strong>${money.format(lead.retailPriceSnapshot)}</strong> is a realistic starting point. What it can't see: your exact opening, side room, headroom, track condition, and opener.</p>
         <p>A free 30-minute measurement turns it into a firm written quote — and if a repair is the smarter call, we'll tell you that instead.</p>
         ${book}
         <p style="font-size:13px;color:#888">This is the last scheduled email about your estimate. Your report link stays live if you need it later.</p>
