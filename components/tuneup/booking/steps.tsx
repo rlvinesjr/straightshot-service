@@ -271,7 +271,7 @@ export function AppointmentWindowStep(props: {
                 aria-pressed={props.window === w.id}
               >
                 {w.label}
-                {!w.available && <span className="ml-2 text-xs font-bold uppercase text-zinc-500">Full</span>}
+                {!w.available && <span className="ml-2 text-xs font-bold uppercase text-zinc-500">Booked</span>}
               </button>
             ))}
           </div>

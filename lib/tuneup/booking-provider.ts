@@ -80,7 +80,92 @@ class LocalMockProvider implements BookingProvider {
   }
 }
 
+// ---- Field app dispatch-board integration ---------------------------------
+//
+// FieldAppProvider layers the StraightShot Field dispatch board on top of the
+// local rules: a window is also unavailable when ANY scheduled job or tech
+// time-off block overlaps it (one-crew rule, per the owner). Busy intervals
+// come from the fieldapp's key-protected GET /api/booking-busy and are pure
+// Central wall-clock minutes — both apps store local times, so the comparison
+// is string/minute math with no Date()/UTC conversion.
+//
+// Fail-open by design: if the fieldapp is down or slow, availability degrades
+// to the local rules and a warning is logged. A customer request is never
+// blocked by an internal outage — the office confirms every request anyway.
+
+export type BusyInterval = { date: string; startMin: number; endMin: number }
+
+export const WINDOW_MINUTES = 180
+
+export function windowOverlapsBusy(busy: BusyInterval[] | null, date: string, startHour: number): boolean {
+  if (!busy) return false // feed unavailable — fail open
+  const ws = startHour * 60
+  const we = ws + WINDOW_MINUTES
+  return busy.some(b => b.date === date && b.startMin < we && b.endMin > ws)
+}
+
+const BUSY_CACHE_MS = 60_000
+const BUSY_NEGATIVE_CACHE_MS = 15_000
+let busyCache: { at: number; busy: BusyInterval[] | null } | null = null
+
+async function fetchBusyIntervals(): Promise<BusyInterval[] | null> {
+  const now = Date.now()
+  if (busyCache && now - busyCache.at < (busyCache.busy ? BUSY_CACHE_MS : BUSY_NEGATIVE_CACHE_MS)) {
+    return busyCache.busy
+  }
+  const base = process.env.FIELDAPP_URL || "http://127.0.0.1:8745"
+  const key = process.env.DOOR_ESTIMATOR_ADMIN_KEY
+  if (!key) {
+    console.warn("[booking-provider] DOOR_ESTIMATOR_ADMIN_KEY not set — dispatch busy feed disabled")
+    busyCache = { at: now, busy: null }
+    return null
+  }
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: SCHEDULING.timezone }))
+  const from = dateKey(today)
+  const end = new Date(today)
+  end.setDate(end.getDate() + SCHEDULING.maxDaysOut)
+  const to = dateKey(end)
+  try {
+    const res = await fetch(`${base}/api/booking-busy?from=${from}&to=${to}`, {
+      headers: { "X-Door-Estimator-Key": key },
+      signal: AbortSignal.timeout(4000),
+      cache: "no-store",
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = (await res.json()) as { busy?: BusyInterval[] }
+    const busy = Array.isArray(data.busy) ? data.busy : []
+    busyCache = { at: now, busy }
+    return busy
+  } catch (error) {
+    console.warn("[booking-provider] fieldapp busy feed unavailable — failing open:", error instanceof Error ? error.message : error)
+    busyCache = { at: now, busy: null }
+    return null
+  }
+}
+
+class FieldAppProvider extends LocalMockProvider {
+  async getAvailability(): Promise<DayAvailability[]> {
+    const [days, busy] = await Promise.all([super.getAvailability(), fetchBusyIntervals()])
+    for (const day of days) {
+      for (const w of day.windows) {
+        const startHour = SCHEDULING.arrivalWindows.find(x => x.id === w.id)?.startHour ?? 0
+        if (w.available && windowOverlapsBusy(busy, day.date, startHour)) w.available = false
+      }
+    }
+    return days
+  }
+
+  async reserve(date: string, windowId: string): Promise<boolean> {
+    const open = await super.reserve(date, windowId)
+    if (!open) return false
+    const startHour = SCHEDULING.arrivalWindows.find(x => x.id === windowId)?.startHour
+    if (startHour === undefined) return false
+    return !windowOverlapsBusy(await fetchBusyIntervals(), date, startHour)
+  }
+}
+
 export function getBookingProvider(): BookingProvider {
-  // env BOOKING_PROVIDER reserved for future adapters ("google", "jobber", ...).
-  return new LocalMockProvider()
+  // BOOKING_PROVIDER=fieldapp overlays dispatch-board conflicts; anything else
+  // (or unset) uses the local mock rules only. Future adapters: google, jobber...
+  return process.env.BOOKING_PROVIDER === "fieldapp" ? new FieldAppProvider() : new LocalMockProvider()
 }

@@ -93,6 +93,10 @@ export default function BookingFlow() {
       const data = (await res.json()) as { days: DayAvailability[]; timezoneLabel: string }
       setDays(data.days)
       setTimezoneLabel(data.timezoneLabel)
+      // Auto-select the first open date so the arrival windows are visible
+      // immediately — users missed them when a date tap was required first.
+      const open = data.days.filter(d => d.windows.some(w => w.available))
+      setDate(current => (current && open.some(d => d.date === current) ? current : open[0]?.date ?? ""))
     } catch {
       setAvailabilityFailed(true)
     }
