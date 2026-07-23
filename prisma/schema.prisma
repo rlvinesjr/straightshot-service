@@ -113,6 +113,42 @@ model TuneUpLead {
   updatedAt    DateTime  @updatedAt
 }
 
+// Self-scheduled $129 tune-up appointment requests from /tuneup.
+// status: requested | pending_confirmation | confirmed | call_required |
+//         service_area_review | cancelled  (see lib/tuneup/booking.ts)
+model TuneUpBooking {
+  id                     String    @id @default(cuid())
+  token                  String    @unique @default(cuid())
+  reference              String    @unique
+  status                 String    @default("requested")
+  firstName              String
+  lastName               String?
+  phone                  String
+  email                  String?
+  preferredContactMethod String    @default("text")
+  serviceAddress         String?
+  city                   String?
+  zipCode                String?
+  doorCount              String?
+  doorOperatingStatus    String?
+  issueType              String?
+  specialConditions      String?
+  notes                  String?
+  requestedDate          String?
+  requestedWindow        String?
+  serviceAreaEligible    Boolean?
+  source                 String?
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
+  utmContent             String?
+  gclid                  String?
+  fbclid                 String?
+  consentAccepted        Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
 model DoorEstimate {
   id                  String    @id @default(cuid())
   token               String    @unique @default(cuid())

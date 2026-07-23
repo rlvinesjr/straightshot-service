@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "validate:door-estimator": "tsx scripts/validate-door-estimator.ts"
+    "validate:door-estimator": "tsx scripts/validate-door-estimator.ts",
+    "validate:tuneup": "tsx scripts/validate-tuneup-booking.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
