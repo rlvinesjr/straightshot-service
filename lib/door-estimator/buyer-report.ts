@@ -307,7 +307,7 @@ export async function buildBuyerReport(config: DoorEstimatorConfig, selection: D
     page.drawText("Quote B", { x: colB - 10, y, size: 9.5, font: bold, color: GRAY })
     y -= 17
     const items = [
-      "Exact door model, construction, color, and options",
+      "Door construction, insulation, color, and options clearly stated",
       "New door sections or panels",
       "New vertical and horizontal tracks",
       "New springs, cables, and drums",
