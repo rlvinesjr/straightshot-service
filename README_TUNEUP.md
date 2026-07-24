@@ -66,11 +66,19 @@ the related section** — never invent a value:
 open requests exist for it). Past/closed/full windows can't be selected client-
 side and are re-rejected server-side.
 
-**The mock provider does not sync with a real calendar** — it only counts this
-app's own open requests. That is safe because every request is confirmed by a
-human before it is final. To integrate Google Calendar / Jobber / Housecall
-Pro / ServiceTitan / GoHighLevel, implement the `BookingProvider` interface in
-`lib/tuneup/booking-provider.ts` and switch on `BOOKING_PROVIDER` env.
+**Production uses the Field app dispatch board** (`BOOKING_PROVIDER=fieldapp`
+on the VPS): on top of the local rules, a window shows "Booked" when ANY
+scheduled job or tech time-off block on the StraightShot Field dispatch board
+overlaps it (one-crew rule). Busy intervals come from the fieldapp's
+key-protected `GET /api/booking-busy` (`FIELDAPP_URL`, shared
+`DOOR_ESTIMATOR_ADMIN_KEY`), cached 60s, and **fail open** to the local rules
+if the fieldapp is unreachable. Booking requests appear in the Field app under
+Door Leads → Bookings, where "+ Create job on dispatch board" turns one into a
+customer (deduped by phone) + scheduled job and marks the booking confirmed.
+With `BOOKING_PROVIDER` unset (local dev), the mock provider applies local
+rules only. Other integrations (Google Calendar / Jobber / Housecall Pro /
+ServiceTitan) would implement the same `BookingProvider` interface in
+`lib/tuneup/booking-provider.ts`.
 
 ## Booking statuses
 
