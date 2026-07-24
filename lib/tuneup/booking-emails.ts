@@ -104,12 +104,14 @@ export async function notifyBooking(b: BookingRecord): Promise<void> {
   const alertTo = process.env.LEAD_ALERT_TO
   if (alertTo) {
     const alert = bookingBusinessAlert(b)
-    void tryEmail(alertTo, alert.subject, alert.html)
+    void tryEmail(alertTo, alert.subject, alert.html).then(sent =>
+      console.log(`[tuneup-booking] ${b.reference} office alert ${sent ? "sent" : "FAILED"}`))
   } else {
     console.log(`[tuneup-booking] LEAD_ALERT_TO not set — business alert for ${b.reference} (${b.status}) not sent`)
   }
   if (b.email && (b.status as BookingStatus) === "requested") {
     const receipt = bookingReceiptEmail(b)
-    void tryEmail(b.email, receipt.subject, receipt.html)
+    void tryEmail(b.email, receipt.subject, receipt.html).then(sent =>
+      console.log(`[tuneup-booking] ${b.reference} customer receipt ${sent ? "sent" : "FAILED"}`))
   }
 }

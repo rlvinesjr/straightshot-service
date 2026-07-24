@@ -46,7 +46,7 @@ const emptyContact: Contact = {
   preferredContactMethod: "text",
   notes: "",
   consentAccepted: false,
-  company: "",
+  hp: "",
 }
 
 const emptyScreening: Screening = { doorOperatingStatus: "", issueType: "", doorCount: "", specialConditions: [] }

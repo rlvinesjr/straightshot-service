@@ -49,9 +49,14 @@ export async function POST(request: Request) {
     const raw = (await request.json().catch(() => null)) as Record<string, unknown> | null
     if (!raw) return jsonError("Invalid request", 400, headers)
 
-    // Honeypot: real users never see or fill the "company" field. Pretend
-    // success so bots don't learn anything; store nothing.
-    if (typeof raw.company === "string" && raw.company.trim() !== "") {
+    // Honeypot: real users never see or fill the hidden "hp" field. Pretend
+    // success so bots don't learn anything; store nothing — but LOG it, so a
+    // false positive (e.g. browser autofill) is visible in the journal.
+    // ("company" is the legacy field name — kept so old cached pages and bots
+    // that scraped them still trip it.)
+    const honeypot = [raw.hp, raw.company].find(v => typeof v === "string" && v.trim() !== "")
+    if (honeypot !== undefined) {
+      console.warn(`[tuneup-booking] honeypot tripped (${typeof raw.hp === "string" && raw.hp.trim() ? "hp" : "company"} filled) — request discarded`)
       return Response.json({ reference: makeReference(), status: "requested" }, { status: 201, headers })
     }
 

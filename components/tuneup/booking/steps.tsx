@@ -299,7 +299,7 @@ export type Contact = {
   preferredContactMethod: "text" | "phone"
   notes: string
   consentAccepted: boolean
-  company: string // honeypot — hidden from real users
+  hp: string // honeypot — hidden from real users; name/label deliberately meaningless so browser autofill never touches it
 }
 
 export function ContactDetailsStep(props: {
@@ -386,10 +386,12 @@ export function ContactDetailsStep(props: {
           placeholder="Gate codes, dogs, which door, parking..."
         />
       </div>
-      {/* Honeypot — invisible to people, tempting to bots. */}
+      {/* Honeypot — invisible to people, tempting to bots. The id/label must
+          never resemble a real field ("Company" got autofilled by Chrome and
+          silently swallowed real customers). */}
       <div className="absolute -left-[9999px] top-auto" aria-hidden="true">
-        <label htmlFor="ba-company">Company</label>
-        <input id="ba-company" type="text" tabIndex={-1} autoComplete="off" value={v.company} onChange={e => set({ company: e.target.value })} />
+        <label htmlFor="ba-hp-check">Leave this field empty</label>
+        <input id="ba-hp-check" type="text" tabIndex={-1} autoComplete="off" value={v.hp} onChange={e => set({ hp: e.target.value })} />
       </div>
       <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <input
