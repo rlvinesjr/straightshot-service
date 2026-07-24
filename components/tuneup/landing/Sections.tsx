@@ -253,13 +253,14 @@ export function Testimonials() {
   )
 }
 
-// A single strong review used high on the page.
+// All three Google reviews, stacked — shown right under the scheduler.
 export function FeaturedReview() {
-  const review = TESTIMONIALS[1] ?? TESTIMONIALS[0]
-  if (!review) return null
+  if (TESTIMONIALS.length === 0) return null
   return (
-    <div className="mx-auto mt-8 max-w-xl">
-      <TestimonialCard review={review} />
+    <div className="mx-auto mt-8 grid max-w-xl grid-cols-1 gap-4">
+      {TESTIMONIALS.slice(0, 3).map(r => (
+        <TestimonialCard key={r.firstName + (r.lastName ?? "")} review={r} />
+      ))}
     </div>
   )
 }
