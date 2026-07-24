@@ -145,9 +145,11 @@ export function AppointmentWindowStep(props: {
           {props.notice}
         </p>
       )}
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="mb-2 text-sm font-bold text-zinc-300">Date</legend>
-        <div className="flex gap-2 overflow-x-auto pb-2" role="listbox" aria-label="Available dates">
+        {/* Wrapping grid, not a horizontal scroller — fieldsets refuse to
+            shrink below their content, so a scroll strip bleeds off-screen. */}
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="listbox" aria-label="Available dates">
           {openDays.map(d => (
             <button
               key={d.date}
@@ -155,7 +157,7 @@ export function AppointmentWindowStep(props: {
               role="option"
               aria-selected={props.date === d.date}
               onClick={() => props.onPick(d.date, "")}
-              className={`min-h-[48px] shrink-0 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
+              className={`min-h-[48px] rounded-xl border px-1 py-2.5 text-center text-sm font-bold transition ${
                 props.date === d.date ? "border-[#00FF47] bg-[#00FF47]/10 text-white" : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500"
               }`}
             >
