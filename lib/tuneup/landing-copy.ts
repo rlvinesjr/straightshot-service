@@ -32,7 +32,7 @@ export function faqItems(): FaqItem[] {
   const items: FaqItem[] = [
     {
       question: `What exactly is included in the ${price} service?`,
-      answer: `One qualifying standard residential garage door gets a full professional tune-up: replacement of ${rollerPhrase()}, inspection of the springs, cables, tracks, hinges, hardware, and opener operation, lubrication of the appropriate moving parts, tightening of accessible hardware, a door balance and movement check, minor operating adjustments where appropriate, a safety-reversal test, a final operational test, and a clear summary of the door's condition. Parts and labor for the listed work are included.`,
+      answer: `One qualifying standard residential garage door gets a full professional tune-up: replacement of rollers with new Nylon Maintenance Free Ball Bearing Rollers, inspection of the springs, cables, tracks, hinges, hardware, and opener operation, lubrication of moving parts, tightening of any hardware, a door balance and movement check, minor operating adjustments where appropriate, a safety-reversal test, a final operational test, and a clear summary of the door's condition. Parts and labor for the listed work are included.`,
     },
     {
       question: `Is ${price} the complete price?`,
@@ -40,7 +40,7 @@ export function faqItems(): FaqItem[] {
     },
     {
       question: "What types of garage doors qualify?",
-      answer: `The offer covers one standard residential garage door that uses ${BUSINESS.rollerType}. Commercial doors, custom or specialty systems, and doors with specialty parts need a different appointment — call ${BUSINESS.phoneNumber} and we'll schedule the right technician. Have two or more doors? Call us and we'll quote the additional doors.`,
+      answer: `The offer covers one standard residential garage door that uses standard rollers. If you have more than one door we will be glad to do the same service on each door for ${price} each.`,
     },
     {
       question: "What happens if the technician finds another problem?",

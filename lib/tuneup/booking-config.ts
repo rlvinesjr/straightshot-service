@@ -47,7 +47,7 @@ export const BUSINESS = {
   offerExpiration: null as string | null, // e.g. "August 31, 2026" — only when genuinely true
   promotionalAppointmentLimit: null as number | null, // e.g. 8 per week — only when genuinely enforced
   appointmentDurationMinutes: null as number | null,
-  warrantyText: null as string | null, // e.g. "90-day workmanship warranty on the tune-up"
+  warrantyText: "We stand behind our work. All of our work has a 90 day labor warranty and the Rollers come with a 5 year parts warranty." as string | null,
   taxDisclosure: null as string | null, // e.g. "Price includes sales tax." — omit tax language until decided
   serviceCallFeeDisclosure:
     "The $129 is one straightforward price for the tune-up visit — there is no separate trip or service-call fee for this offer.",
