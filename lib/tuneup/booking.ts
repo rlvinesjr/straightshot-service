@@ -90,6 +90,7 @@ export type BookingPayload = {
   preferredContactMethod: "text" | "phone"
   serviceAddress: string
   city: string
+  state: string | null
   zipCode: string
   doorCount: string
   doorOperatingStatus: string
@@ -124,12 +125,6 @@ export const RESIDENTIAL_OPTIONS = [
   { id: "commercial", label: "No, it is commercial" },
 ] as const
 
-// Pulls a 5-digit ZIP out of a free-text address ("123 Main St, Tyler, TX 75701").
-export function extractZip(address: string): string {
-  const matches = address.match(/\b\d{5}\b/g)
-  return matches ? matches[matches.length - 1] : ""
-}
-
 // Validates and normalizes a raw request body into a storable payload.
 // `kind` controls how much is required:
 //   "standard"  — full self-schedule request: name, phone, email, address,
@@ -161,14 +156,19 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
 
   const preferredContactMethod = raw.preferredContactMethod === "phone" ? "phone" : "text"
 
-  // One free-text address line (street, city, ZIP together — browser autofill
-  // handles it). ZIP is extracted when present rather than asked separately.
+  // Complete service address: street, city, state, and ZIP are all required
+  // for self-scheduled requests (browser autofill fills all four at once).
   const serviceAddress = sanitizeText(raw.serviceAddress, 200)
-  if (kind === "standard" && serviceAddress.length < 5) errors.serviceAddress = "Please enter the service address"
   const city = sanitizeText(raw.city, 80)
+  const state = sanitizeText(raw.state, 20).toUpperCase()
   let zipCode = sanitizeText(raw.zipCode, 10)
-  if (!/^\d{5}$/.test(zipCode)) zipCode = extractZip(serviceAddress)
-  if (kind === "callback" && !/^\d{5}$/.test(zipCode)) zipCode = ""
+  if (kind === "standard") {
+    if (serviceAddress.length < 5) errors.serviceAddress = "Please enter the street address"
+    if (city.length < 2) errors.city = "Please enter the city"
+    if (!/^[A-Z]{2}$/.test(state)) errors.state = "Please enter the 2-letter state"
+    if (!/^\d{5}$/.test(zipCode)) errors.zipCode = "Please enter the 5-digit ZIP code"
+  }
+  if (!/^\d{5}$/.test(zipCode)) zipCode = ""
 
   const residential = sanitizeText(raw.residential, 20)
   const doorCount = sanitizeText(raw.doorCount, 30)
@@ -221,6 +221,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
       preferredContactMethod,
       serviceAddress,
       city,
+      state: state || null,
       zipCode,
       doorCount,
       doorOperatingStatus,

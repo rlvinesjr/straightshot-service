@@ -15,6 +15,7 @@ import {
   ConfirmStep,
   CallButton,
   prettyDay,
+  formatAddress,
   type Contact,
   type ConfirmAnswers,
 } from "./steps"
@@ -28,7 +29,8 @@ const PHASE_LABELS: Record<string, { n: number; label: string }> = {
 }
 const TOTAL_STEPS = 3
 
-const emptyContact: Contact = { fullName: "", phone: "", email: "", serviceAddress: "", hp: "" }
+// State pre-filled — every job is in East Texas; still editable.
+const emptyContact: Contact = { fullName: "", phone: "", email: "", serviceAddress: "", city: "", state: "TX", zipCode: "", hp: "" }
 
 export type ConfirmedBooking = {
   reference: string
@@ -101,7 +103,10 @@ export default function BookingFlow() {
     const errors: Record<string, string> = {}
     if (contact.fullName.trim().length < 2) errors.fullName = "Please enter your full name"
     if (contact.phone.replace(/\D/g, "").length < 10) errors.phone = "Please enter a valid 10-digit mobile number"
-    if (contact.serviceAddress.trim().length < 5) errors.serviceAddress = "Please enter the service address"
+    if (contact.serviceAddress.trim().length < 5) errors.serviceAddress = "Please enter the street address"
+    if (contact.city.trim().length < 2) errors.city = "Please enter the city"
+    if (!/^[A-Za-z]{2}$/.test(contact.state.trim())) errors.state = "2-letter state"
+    if (!/^\d{5}$/.test(contact.zipCode.trim())) errors.zipCode = "5-digit ZIP"
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(contact.email.trim())) errors.email = "Please enter a valid email address"
     setContactErrors(errors)
     if (Object.keys(errors).length === 0) {
@@ -155,7 +160,7 @@ export default function BookingFlow() {
         reference: data.reference,
         date,
         window: window_,
-        address: contact.serviceAddress,
+        address: formatAddress(contact),
         contactMethod: "text or phone",
       })
       setPhase("done")

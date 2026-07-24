@@ -20,6 +20,7 @@ export type BookingRecord = {
   preferredContactMethod: string
   serviceAddress: string | null
   city: string | null
+  state: string | null
   zipCode: string | null
   doorCount: string | null
   doorOperatingStatus: string | null
@@ -47,6 +48,11 @@ const shell = (body: string) => `<!doctype html>
   </div>
 </div>`
 
+function fullAddress(b: Pick<BookingRecord, "serviceAddress" | "city" | "state" | "zipCode">): string {
+  if (!b.serviceAddress) return "—"
+  return `${b.serviceAddress}${b.city ? `, ${b.city}` : ""}${b.state ? `, ${b.state}` : ""}${b.zipCode ? ` ${b.zipCode}` : ""}`
+}
+
 function prettyDate(key: string | null): string {
   if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return key ?? "—"
   const [y, m, d] = key.split("-").map(Number)
@@ -62,7 +68,7 @@ export function bookingReceiptEmail(b: BookingRecord): { subject: string; html: 
       <h2 style="margin:0 0 12px">Request received, ${b.firstName}</h2>
       <p>We received your $129 garage door tune-up request for <strong>${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}</strong>. We'll contact you shortly to confirm the appointment.</p>
       <p style="margin:16px 0 4px"><strong>Request reference:</strong> ${b.reference}<br>
-      <strong>Service address:</strong> ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""}<br>
+      <strong>Service address:</strong> ${fullAddress(b)}<br>
       <strong>We'll reach you by:</strong> text or phone at ${formatPhone(b.phone)}</p>
       <p><strong>Please don't consider the appointment final until you receive our confirmation.</strong></p>
       <p>${b.doorCount === "two-plus"
@@ -90,7 +96,7 @@ export function bookingBusinessAlert(b: BookingRecord): { subject: string; html:
       <p><strong>${name}</strong><br>
       Phone: <a href="tel:${b.phone}"><strong>${formatPhone(b.phone)}</strong></a><br>
       ${b.email ? `Email: <a href="mailto:${b.email}">${b.email}</a><br>` : ""}
-      Address: ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""}</p>
+      Address: ${fullAddress(b)}</p>
       <p><strong>Requested:</strong> ${when}<br>
       <strong>Residential:</strong> ${b.doorOperatingStatus === "residential" ? "yes" : b.doorOperatingStatus === "not-sure-if-residential" ? "customer wasn't sure" : "—"} · <strong>Doors:</strong> ${b.doorCount === "two-plus" ? "two or more ($129/door)" : b.doorCount ?? "—"}<br>
       ${b.notes ? `<strong>Notes:</strong> ${b.notes}<br>` : ""}

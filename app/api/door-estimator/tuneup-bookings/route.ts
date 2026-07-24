@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     preferredContactMethod: b.preferredContactMethod,
     serviceAddress: b.serviceAddress,
     city: b.city,
+    state: b.state,
     zipCode: b.zipCode,
     doorCount: b.doorCount,
     doorOperatingStatus: b.doorOperatingStatus,

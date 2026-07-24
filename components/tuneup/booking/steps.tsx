@@ -199,8 +199,15 @@ export type Contact = {
   fullName: string
   phone: string
   email: string
-  serviceAddress: string
+  serviceAddress: string // street address
+  city: string
+  state: string
+  zipCode: string
   hp: string // honeypot — hidden from real users; name/label deliberately meaningless so browser autofill never touches it
+}
+
+export function formatAddress(c: Pick<Contact, "serviceAddress" | "city" | "state" | "zipCode">): string {
+  return `${c.serviceAddress}, ${c.city}, ${c.state.toUpperCase()} ${c.zipCode}`.trim()
 }
 
 export function ContactInfoStep(props: {
@@ -262,10 +269,15 @@ export function ContactInfoStep(props: {
         placeholder: "(903) 555-0142",
         hint: "We’ll use this number to confirm your appointment and let you know when we’re on the way.",
       })}
-      {field("serviceAddress", "Service address", {
-        autoComplete: "street-address",
-        placeholder: "123 Example Street, Tyler, TX 75701",
+      {field("serviceAddress", "Street address", {
+        autoComplete: "address-line1",
+        placeholder: "123 Example Street",
       })}
+      <div className="grid grid-cols-[1fr_5rem_6.5rem] gap-3">
+        {field("city", "City", { autoComplete: "address-level2", placeholder: "Tyler" })}
+        {field("state", "State", { autoComplete: "address-level1", placeholder: "TX" })}
+        {field("zipCode", "ZIP code", { autoComplete: "postal-code", inputMode: "tel", placeholder: "75701" })}
+      </div>
       {field("email", "Email address", {
         type: "email",
         autoComplete: "email",
@@ -356,7 +368,7 @@ export function ConfirmStep(props: {
       </fieldset>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2">
         {row("Appointment window", `${prettyDay(props.date)} · ${windowLabel(props.window)}`)}
-        {row("Service address", props.contact.serviceAddress)}
+        {row("Service address", formatAddress(props.contact))}
         {row("Service", `$${BUSINESS.promotionalPrice} Garage Door Tune-Up with Roller Replacement${answers.doorCount === "two-plus" ? ` — $${BUSINESS.promotionalPrice} per door` : ""}`)}
       </div>
       <p className="text-sm text-zinc-400">
