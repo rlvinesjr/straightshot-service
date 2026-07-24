@@ -56,4 +56,4 @@ export function faqItems(): FaqItem[] {
   return items
 }
 
-export const OFFER_DISCLOSURE = `Offer applies to one qualifying standard residential garage door and includes the listed tune-up services plus replacement of ${rollerPhrase().replace("new ", "qualifying ")}. Specialty parts, custom systems, commercial doors, ${BUSINESS.taxDisclosure ? "" : "taxes, "}fees, and additional repairs are handled according to the disclosures above. No additional work will be performed without authorization. Appointment requests are confirmed by phone or text before they are final.`
+export const OFFER_DISCLOSURE = `Offer applies per qualifying standard residential garage door ($${BUSINESS.promotionalPrice} each) and includes the listed tune-up services plus replacement of ${rollerPhrase().replace("new ", "qualifying ")}. Specialty parts, custom systems, commercial doors, ${BUSINESS.taxDisclosure ? "" : "taxes, "}fees, and additional repairs are handled according to the disclosures above. No additional work will be performed without authorization. Appointment requests are confirmed by phone or text before they are final.`

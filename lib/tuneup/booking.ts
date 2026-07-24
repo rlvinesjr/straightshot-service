@@ -51,11 +51,11 @@ export type ScreeningInput = {
   specialConditions: string[]
 }
 
-// Emergency / special routing: stuck doors, hazard flags, multi-door jobs
-// (the promo covers one door), and same-day requests all go to a phone call.
+// Emergency / special routing: stuck doors, hazard flags, and same-day
+// requests go to a phone call. Multiple doors self-schedule at $129 each —
+// the office just sees the count flagged so it can plan a longer visit.
 export function requiresCall(screening: ScreeningInput): boolean {
   if (screening.doorOperatingStatus === "stuck") return true
-  if (screening.doorCount === "two-plus") return true
   return screening.specialConditions.some(c => c !== "none" && c !== "")
 }
 

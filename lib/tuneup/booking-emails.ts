@@ -65,7 +65,9 @@ export function bookingReceiptEmail(b: BookingRecord): { subject: string; html: 
       <strong>Service address:</strong> ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""} ${b.zipCode ?? ""}<br>
       <strong>We'll reach you by:</strong> ${b.preferredContactMethod === "phone" ? "phone call" : "text"} at ${formatPhone(b.phone)}</p>
       <p><strong>Please don't consider the appointment final until you receive our confirmation.</strong></p>
-      <p>The $129 covers the tune-up service and ${rollerPhrase()} for one qualifying standard residential door. Any additional work is always explained and priced for your approval first.</p>
+      <p>${b.doorCount === "two-plus"
+        ? `The $129 covers the tune-up service and ${rollerPhrase()} per qualifying standard residential door — since you have more than one door, we'll confirm the door count, total, and time needed when we confirm your appointment.`
+        : `The $129 covers the tune-up service and ${rollerPhrase()} for one qualifying standard residential door.`} Any additional work is always explained and priced for your approval first.</p>
       <p>Questions, changes, or urgent service? Reply to this email or call <a href="tel:${OFFICE_TEL}" style="color:#00a02e"><strong>${BUSINESS.phoneNumber}</strong></a>.</p>
     `),
   }
@@ -82,7 +84,7 @@ export function bookingBusinessAlert(b: BookingRecord): { subject: string; html:
   const name = [b.firstName, b.lastName].filter(Boolean).join(" ")
   const when = b.requestedDate ? `${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}` : "no window selected"
   return {
-    subject: `${b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"} ${b.reference} — ${name} (${when})`,
+    subject: `${b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"} ${b.reference} — ${name} (${when})${b.doorCount === "two-plus" ? " — 2+ DOORS" : ""}`,
     html: shell(`
       <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${STATUS_HEADLINE[b.status] ?? b.status}</h2>
       <p><strong>${name}</strong><br>

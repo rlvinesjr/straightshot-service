@@ -43,7 +43,7 @@ export const BUSINESS = {
   promotionalPrice: 129,
   regularPrice: null as number | null, // set to show the savings section
   rollerQuantity: null as number | null, // e.g. 10 — renders "up to 10 new standard rollers"
-  rollerType: "standard rollers",
+  rollerType: "nylon maintenance-free ball-bearing rollers",
   offerExpiration: null as string | null, // e.g. "August 31, 2026" — only when genuinely true
   promotionalAppointmentLimit: null as number | null, // e.g. 8 per week — only when genuinely enforced
   appointmentDurationMinutes: null as number | null,

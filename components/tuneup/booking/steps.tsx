@@ -433,6 +433,7 @@ export function BookingReviewStep(props: {
 }) {
   const { contact, screening } = props
   const issue = ISSUE_OPTIONS.find(o => o.id === screening.issueType)?.label ?? "—"
+  const multiDoor = screening.doorCount === "two-plus"
   const prettyDate = (() => {
     const [y, m, d] = props.date.split("-").map(Number)
     return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
@@ -448,7 +449,8 @@ export function BookingReviewStep(props: {
       <StepHeading sub="Look it over — nothing is charged and nothing is final until we confirm.">Review your request</StepHeading>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2">
         {row("Service", "Garage Door Tune-Up + New Rollers")}
-        {row("Price", `$${BUSINESS.promotionalPrice} — parts & labor for the listed service`)}
+        {row("Price", multiDoor ? `$${BUSINESS.promotionalPrice} per door — parts & labor for the listed service` : `$${BUSINESS.promotionalPrice} — parts & labor for the listed service`)}
+        {multiDoor ? row("Doors", "Two or more") : null}
         {row("Date", prettyDate)}
         {row("Arrival window", windowLabel(props.window))}
         {row("Address", `${contact.serviceAddress}, ${contact.city} ${props.zip}`)}
@@ -457,7 +459,9 @@ export function BookingReviewStep(props: {
         {row("Confirm by", contact.preferredContactMethod === "phone" ? "Phone call" : "Text")}
       </div>
       <ul className="space-y-1.5 text-sm text-zinc-400">
-        <li className="flex gap-2"><CheckIcon className="h-4 w-4 mt-0.5" /> Covers one qualifying standard residential door; specialty parts and extra repairs are quoted separately for your approval.</li>
+        <li className="flex gap-2"><CheckIcon className="h-4 w-4 mt-0.5" /> {multiDoor
+          ? `Each qualifying standard residential door is $${BUSINESS.promotionalPrice}; we'll confirm the door count and time needed when we confirm. Specialty parts and extra repairs are quoted separately for your approval.`
+          : "Covers one qualifying standard residential door; specialty parts and extra repairs are quoted separately for your approval."}</li>
         <li className="flex gap-2"><CheckIcon className="h-4 w-4 mt-0.5" /> This is a request — we&rsquo;ll {contact.preferredContactMethod === "phone" ? "call" : "text"} to confirm before it&rsquo;s on the schedule.</li>
         <li className="flex gap-2"><CheckIcon className="h-4 w-4 mt-0.5" /> No payment now. You pay after the service is done.</li>
       </ul>
