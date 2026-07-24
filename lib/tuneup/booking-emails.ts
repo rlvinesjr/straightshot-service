@@ -62,8 +62,8 @@ export function bookingReceiptEmail(b: BookingRecord): { subject: string; html: 
       <h2 style="margin:0 0 12px">Request received, ${b.firstName}</h2>
       <p>We received your $129 garage door tune-up request for <strong>${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}</strong>. We'll contact you shortly to confirm the appointment.</p>
       <p style="margin:16px 0 4px"><strong>Request reference:</strong> ${b.reference}<br>
-      <strong>Service address:</strong> ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""} ${b.zipCode ?? ""}<br>
-      <strong>We'll reach you by:</strong> ${b.preferredContactMethod === "phone" ? "phone call" : "text"} at ${formatPhone(b.phone)}</p>
+      <strong>Service address:</strong> ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""}<br>
+      <strong>We'll reach you by:</strong> text or phone at ${formatPhone(b.phone)}</p>
       <p><strong>Please don't consider the appointment final until you receive our confirmation.</strong></p>
       <p>${b.doorCount === "two-plus"
         ? `The $129 covers the tune-up service and ${rollerPhrase()} per qualifying standard residential door — since you have more than one door, we'll confirm the door count, total, and time needed when we confirm your appointment.`
@@ -88,22 +88,23 @@ export function bookingBusinessAlert(b: BookingRecord): { subject: string; html:
     html: shell(`
       <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${STATUS_HEADLINE[b.status] ?? b.status}</h2>
       <p><strong>${name}</strong><br>
-      Phone: <a href="tel:${b.phone}"><strong>${formatPhone(b.phone)}</strong></a> (prefers ${b.preferredContactMethod})<br>
+      Phone: <a href="tel:${b.phone}"><strong>${formatPhone(b.phone)}</strong></a><br>
       ${b.email ? `Email: <a href="mailto:${b.email}">${b.email}</a><br>` : ""}
-      Address: ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""} ${b.zipCode ?? ""}</p>
+      Address: ${b.serviceAddress ?? "—"}${b.city ? `, ${b.city}` : ""}</p>
       <p><strong>Requested:</strong> ${when}<br>
-      <strong>Door:</strong> ${b.doorOperatingStatus ?? "—"} · Issue: ${b.issueType ?? "—"} · Doors: ${b.doorCount ?? "—"}<br>
-      ${b.specialConditions && b.specialConditions !== "none" ? `<strong>Special conditions:</strong> ${b.specialConditions}<br>` : ""}
+      <strong>Residential:</strong> ${b.doorOperatingStatus === "residential" ? "yes" : b.doorOperatingStatus === "not-sure-if-residential" ? "customer wasn't sure" : "—"} · <strong>Doors:</strong> ${b.doorCount === "two-plus" ? "two or more ($129/door)" : b.doorCount ?? "—"}<br>
       ${b.notes ? `<strong>Notes:</strong> ${b.notes}<br>` : ""}
       <strong>Status:</strong> ${b.status} · <strong>Ref:</strong> ${b.reference}<br>
       <strong>Source:</strong> ${b.source ?? "tuneup-landing"}${b.utmSource ? ` · utm_source=${b.utmSource}` : ""}${b.utmCampaign ? ` · utm_campaign=${b.utmCampaign}` : ""}</p>
-      <p style="font-size:13px;color:#888">Reply-by-${b.preferredContactMethod === "phone" ? "call" : "text"} to confirm, then mark it on the schedule.</p>
+      <p style="font-size:13px;color:#888">Text or call to confirm, then mark it on the schedule.</p>
     `),
   }
 }
 
 export async function notifyBooking(b: BookingRecord): Promise<void> {
-  const alertTo = process.env.LEAD_ALERT_TO
+  // Appointment requests go to the booking inbox; falls back to the general
+  // lead-alert address if BOOKING_ALERT_TO is unset.
+  const alertTo = process.env.BOOKING_ALERT_TO || process.env.LEAD_ALERT_TO
   if (alertTo) {
     const alert = bookingBusinessAlert(b)
     void tryEmail(alertTo, alert.subject, alert.html).then(sent =>

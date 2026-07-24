@@ -13,51 +13,10 @@ export type BookingStatus =
   | "service_area_review"
   | "cancelled"
 
-export const DOOR_OPERATING_OPTIONS = [
-  { id: "operating", label: "Yes, it is operating" },
-  { id: "operating-poorly", label: "It operates, but poorly" },
-  { id: "stuck", label: "No, it is stuck" },
-  { id: "not-sure", label: "I am not sure" },
-] as const
-
-export const ISSUE_OPTIONS = [
-  { id: "noisy", label: "Noisy or rattling" },
-  { id: "shaking", label: "Shaking or jerking" },
-  { id: "slow", label: "Slow or uneven" },
-  { id: "maintenance", label: "General maintenance" },
-  { id: "other", label: "Other" },
-] as const
-
 export const DOOR_COUNT_OPTIONS = [
   { id: "one", label: "One" },
   { id: "two-plus", label: "Two or more" },
 ] as const
-
-// Conditions that should be scheduled by phone rather than self-booked —
-// either a safety concern or a job the $129 offer doesn't cover as-is.
-export const SPECIAL_CONDITION_OPTIONS = [
-  { id: "broken-spring", label: "A spring looks broken or gapped" },
-  { id: "cable", label: "A cable is loose, frayed, or off" },
-  { id: "off-track", label: "The door is off its track or leaning" },
-  { id: "commercial", label: "It is a commercial, custom, or specialty door" },
-  { id: "same-day", label: "I need same-day service" },
-  { id: "none", label: "None of these" },
-] as const
-
-export type ScreeningInput = {
-  doorOperatingStatus: string
-  issueType: string
-  doorCount: string
-  specialConditions: string[]
-}
-
-// Emergency / special routing: stuck doors, hazard flags, and same-day
-// requests go to a phone call. Multiple doors self-schedule at $129 each —
-// the office just sees the count flagged so it can plan a longer visit.
-export function requiresCall(screening: ScreeningInput): boolean {
-  if (screening.doorOperatingStatus === "stuck") return true
-  return screening.specialConditions.some(c => c !== "none" && c !== "")
-}
 
 export function zipEligibility(zip: string): "eligible" | "review" {
   const list = BUSINESS.serviceZipCodes
@@ -157,54 +116,72 @@ export type ValidationResult =
 
 const oneOf = (options: readonly { id: string }[], value: string) => options.some(o => o.id === value)
 
+// Answers to "Is this for a residential garage door?" — the only screening
+// question left in the low-friction flow. "commercial" never self-schedules.
+export const RESIDENTIAL_OPTIONS = [
+  { id: "yes", label: "Yes" },
+  { id: "not-sure", label: "I'm not sure" },
+  { id: "commercial", label: "No, it is commercial" },
+] as const
+
+// Pulls a 5-digit ZIP out of a free-text address ("123 Main St, Tyler, TX 75701").
+export function extractZip(address: string): string {
+  const matches = address.match(/\b\d{5}\b/g)
+  return matches ? matches[matches.length - 1] : ""
+}
+
 // Validates and normalizes a raw request body into a storable payload.
 // `kind` controls how much is required:
-//   "standard"  — full self-schedule request (date + window + consent required)
+//   "standard"  — full self-schedule request: name, phone, email, address,
+//                 residential answer, door count, date + window
 //   "callback"  — call_required / service_area_review lead (name + phone only)
 export function validateBooking(raw: Record<string, unknown>, kind: "standard" | "callback"): ValidationResult {
   const errors: Record<string, string> = {}
 
-  const firstName = sanitizeText(raw.firstName, 60)
-  const lastName = sanitizeText(raw.lastName, 60)
-  if (firstName.length < 2) errors.firstName = "Please enter your first name"
-  if (kind === "standard" && lastName.length < 2) errors.lastName = "Please enter your last name"
+  // "Full name" is a single field in the flow; split it for storage. The
+  // callback form still sends firstName directly.
+  let firstName = sanitizeText(raw.firstName, 60)
+  let lastName = sanitizeText(raw.lastName, 60)
+  const fullName = sanitizeText(raw.fullName, 120)
+  if (fullName) {
+    const parts = fullName.split(" ")
+    firstName = parts[0]
+    lastName = parts.slice(1).join(" ")
+  }
+  if (firstName.length < 2) errors.fullName = errors.firstName = "Please enter your full name"
 
   const phone = normalizePhone(raw.phone)
   if (!phone) errors.phone = "Please enter a valid 10-digit mobile number"
 
   const emailRaw = sanitizeText(raw.email, 120)
   let email: string | null = null
-  if (emailRaw) {
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailRaw)) email = emailRaw.toLowerCase()
-    else errors.email = "That email address doesn't look right — it's optional, so you can also leave it blank"
-  }
+  if (emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailRaw)) email = emailRaw.toLowerCase()
+  if (kind === "standard" && !email) errors.email = "Please enter a valid email address for your appointment details"
+  else if (emailRaw && !email) errors.email = "That email address doesn't look right"
 
   const preferredContactMethod = raw.preferredContactMethod === "phone" ? "phone" : "text"
 
-  const zipCode = sanitizeText(raw.zipCode, 10)
-  if (!/^\d{5}$/.test(zipCode)) errors.zipCode = "Please enter a 5-digit ZIP code"
-
-  const serviceAddress = sanitizeText(raw.serviceAddress, 160)
+  // One free-text address line (street, city, ZIP together — browser autofill
+  // handles it). ZIP is extracted when present rather than asked separately.
+  const serviceAddress = sanitizeText(raw.serviceAddress, 200)
+  if (kind === "standard" && serviceAddress.length < 5) errors.serviceAddress = "Please enter the service address"
   const city = sanitizeText(raw.city, 80)
-  if (kind === "standard") {
-    if (serviceAddress.length < 5) errors.serviceAddress = "Please enter the service address"
-    if (city.length < 2) errors.city = "Please enter the city"
-  }
+  let zipCode = sanitizeText(raw.zipCode, 10)
+  if (!/^\d{5}$/.test(zipCode)) zipCode = extractZip(serviceAddress)
+  if (kind === "callback" && !/^\d{5}$/.test(zipCode)) zipCode = ""
 
-  const doorOperatingStatus = sanitizeText(raw.doorOperatingStatus, 30)
-  const issueType = sanitizeText(raw.issueType, 30)
+  const residential = sanitizeText(raw.residential, 20)
   const doorCount = sanitizeText(raw.doorCount, 30)
-  const specialConditions = Array.isArray(raw.specialConditions)
-    ? raw.specialConditions.map(v => sanitizeText(v, 30)).filter(v => oneOf(SPECIAL_CONDITION_OPTIONS, v))
-    : []
-  if (doorOperatingStatus && !oneOf(DOOR_OPERATING_OPTIONS, doorOperatingStatus)) errors.doorOperatingStatus = "Invalid selection"
-  if (issueType && !oneOf(ISSUE_OPTIONS, issueType)) errors.issueType = "Invalid selection"
   if (doorCount && !oneOf(DOOR_COUNT_OPTIONS, doorCount)) errors.doorCount = "Invalid selection"
   if (kind === "standard") {
-    if (!doorOperatingStatus) errors.doorOperatingStatus = "Please answer the door questions"
-    if (!issueType) errors.issueType = "Please answer the door questions"
-    if (!doorCount) errors.doorCount = "Please answer the door questions"
+    if (!oneOf(RESIDENTIAL_OPTIONS, residential)) errors.residential = "Please answer the residential question"
+    else if (residential === "commercial") errors.routing = "This offer is currently available for residential garage doors only — please call us"
+    if (!doorCount) errors.doorCount = "Please tell us how many doors need service"
   }
+  const doorOperatingStatus =
+    residential === "yes" ? "residential" : residential === "not-sure" ? "not-sure-if-residential" : sanitizeText(raw.doorOperatingStatus, 30) || ""
+  const issueType = sanitizeText(raw.issueType, 30)
+  const specialConditions: string[] = []
 
   const notes = sanitizeText(raw.notes, 500) || null
 
@@ -219,15 +196,10 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
     else requestedWindow = window
   }
 
+  // Submitting the review screen (which states the no-payment and
+  // confirmation policy) is the acknowledgement — no separate checkbox.
   const consentAccepted = raw.consentAccepted === true
   if (kind === "standard" && !consentAccepted) errors.consentAccepted = "Please confirm the service acknowledgements"
-
-  // Standard requests must not carry an emergency screening combination —
-  // the client routes those to a call, and the server re-checks here.
-  const screening: ScreeningInput = { doorOperatingStatus, issueType, doorCount, specialConditions }
-  if (kind === "standard" && requiresCall(screening)) {
-    errors.routing = "This request needs to be scheduled by phone"
-  }
 
   const eligibility = zipEligibility(zipCode)
   const status: BookingStatus =
