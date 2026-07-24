@@ -47,11 +47,13 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 // Moves focus to the step heading whenever the step mounts, so screen-reader
-// and keyboard users land at the top of each new step.
+// and keyboard users land at the top of each new step. preventScroll matters:
+// without it, step 1 grabbing focus on page load scrolls the whole page down
+// to the scheduler instead of loading at the top.
 export function StepHeading({ children, sub }: { children: React.ReactNode; sub?: string }) {
   const ref = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
-    ref.current?.focus()
+    ref.current?.focus({ preventScroll: true })
   }, [])
   return (
     <div>
