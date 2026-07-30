@@ -53,13 +53,13 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
 // and keyboard users land at the top of each new step. preventScroll matters:
 // without it, step 1 grabbing focus on page load scrolls the whole page down
 // to the scheduler instead of loading at the top.
-export function StepHeading({ children, sub }: { children: React.ReactNode; sub?: string }) {
+export function StepHeading({ children, sub, center = false }: { children: React.ReactNode; sub?: string; center?: boolean }) {
   const ref = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     ref.current?.focus({ preventScroll: true })
   }, [])
   return (
-    <div>
+    <div className={center ? "text-center" : undefined}>
       <h3 ref={ref} tabIndex={-1} className="text-xl font-black text-white outline-none">
         {children}
       </h3>
@@ -351,7 +351,7 @@ export function ConfirmStep(props: {
   const ready = general || (answers.residential !== "" && !commercial && answers.doorCount !== "")
 
   const row = (label: string, value: string) => (
-    <div className="border-b border-zinc-800 py-2.5 text-[15px] last:border-0">
+    <div className="border-b border-zinc-800 py-2.5 text-center text-[15px] last:border-0">
       <p className="text-zinc-500">{label}</p>
       <p className="font-semibold text-zinc-100">{value}</p>
     </div>
@@ -360,7 +360,7 @@ export function ConfirmStep(props: {
   return (
     <div className="space-y-5">
       <SelectedWindowBanner date={props.date} window={props.window} onChange={props.onChangeTime} />
-      <StepHeading>{general ? "Review your request" : "One last thing"}</StepHeading>
+      <StepHeading center>{general ? "Review your request" : "One last thing"}</StepHeading>
       {!general && (
         <>
           <fieldset>
@@ -406,7 +406,7 @@ export function ConfirmStep(props: {
           : row("Service", `$${BUSINESS.promotionalPrice} Garage Door Tune-Up with Roller Replacement${answers.doorCount === "two-plus" ? ` — $${BUSINESS.promotionalPrice} per door` : ""}`)}
         {general && props.contact.issue ? row("What's going on", props.contact.issue) : null}
       </div>
-      <p className="text-sm text-zinc-400">
+      <p className="text-center text-sm text-zinc-400">
         No payment is required today. We&rsquo;ll contact you by text or phone to confirm the appointment before it is
         final.
       </p>
