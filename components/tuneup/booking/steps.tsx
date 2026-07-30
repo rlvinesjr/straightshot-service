@@ -195,6 +195,8 @@ export function AppointmentWindowStep(props: {
 
 // ---- Step 2: your information (one screen, no splitting) ----------------------
 
+export type BookingVariant = "tuneup" | "general"
+
 export type Contact = {
   fullName: string
   phone: string
@@ -203,6 +205,7 @@ export type Contact = {
   city: string
   state: string
   zipCode: string
+  issue: string // general bookings only: what's going on with the door
   hp: string // honeypot — hidden from real users; name/label deliberately meaningless so browser autofill never touches it
 }
 
@@ -215,6 +218,7 @@ export function ContactInfoStep(props: {
   errors: Record<string, string>
   date: string
   window: string
+  variant: BookingVariant
   onChange: (v: Contact) => void
   onContinue: () => void
   onChangeTime: () => void
@@ -284,6 +288,28 @@ export function ContactInfoStep(props: {
         inputMode: "email",
         hint: "For appointment details and your service receipt.",
       })}
+      {props.variant === "general" && (
+        <div>
+          <label htmlFor="ba-issue" className="mb-1.5 block text-sm font-bold text-zinc-300">
+            What&rsquo;s going on with the garage door system?
+          </label>
+          <textarea
+            id="ba-issue"
+            rows={3}
+            value={v.issue}
+            onChange={e => set({ issue: e.target.value })}
+            className={inputCls}
+            placeholder="Broken spring, door won't open, want a quote on a new door or opener..."
+            aria-describedby={props.errors.issue ? "ba-issue-error" : "ba-issue-hint"}
+            aria-invalid={props.errors.issue ? true : undefined}
+          />
+          <p id="ba-issue-hint" className="mt-1.5 text-sm text-zinc-500">
+            Repairs, quotes, maintenance, new doors or openers — tell us what you need and we&rsquo;ll send the right
+            technician.
+          </p>
+          <FieldError id="ba-issue-error" message={props.errors.issue} />
+        </div>
+      )}
       {/* Honeypot — invisible to people, tempting to bots. The id/label must
           never resemble a real field ("Company" got autofilled by Chrome and
           silently swallowed real customers). */}
@@ -310,6 +336,7 @@ export function ConfirmStep(props: {
   answers: ConfirmAnswers
   date: string
   window: string
+  variant: BookingVariant
   submitting: boolean
   error?: string
   onChangeAnswers: (v: ConfirmAnswers) => void
@@ -318,9 +345,10 @@ export function ConfirmStep(props: {
   onPhone: () => void
 }) {
   const { answers } = props
+  const general = props.variant === "general"
   const set = (patch: Partial<ConfirmAnswers>) => props.onChangeAnswers({ ...answers, ...patch })
   const commercial = answers.residential === "commercial"
-  const ready = answers.residential !== "" && !commercial && answers.doorCount !== ""
+  const ready = general || (answers.residential !== "" && !commercial && answers.doorCount !== "")
 
   const row = (label: string, value: string) => (
     <div className="border-b border-zinc-800 py-2.5 text-[15px] last:border-0">
@@ -332,44 +360,51 @@ export function ConfirmStep(props: {
   return (
     <div className="space-y-5">
       <SelectedWindowBanner date={props.date} window={props.window} onChange={props.onChangeTime} />
-      <StepHeading>One last thing</StepHeading>
-      <fieldset>
-        <legend className="mb-2 text-sm font-bold text-zinc-300">Is this for a residential garage door?</legend>
-        <div className="space-y-2">
-          {RESIDENTIAL_OPTIONS.map(o => (
-            <button key={o.id} type="button" onClick={() => set({ residential: o.id })} className={optionBtn(answers.residential === o.id)} aria-pressed={answers.residential === o.id}>
-              {o.label}
-            </button>
-          ))}
-        </div>
-        {commercial && (
-          <div className="mt-3 space-y-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
-            <p role="alert" className="text-sm font-semibold text-amber-200">
-              This offer is currently available for residential garage doors only. Please call us if you would like help
-              determining whether we can service your door.
+      <StepHeading>{general ? "Review your request" : "One last thing"}</StepHeading>
+      {!general && (
+        <>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold text-zinc-300">Is this for a residential garage door?</legend>
+            <div className="space-y-2">
+              {RESIDENTIAL_OPTIONS.map(o => (
+                <button key={o.id} type="button" onClick={() => set({ residential: o.id })} className={optionBtn(answers.residential === o.id)} aria-pressed={answers.residential === o.id}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {commercial && (
+              <div className="mt-3 space-y-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+                <p role="alert" className="text-sm font-semibold text-amber-200">
+                  This offer is currently available for residential garage doors only. Please call us if you would like help
+                  determining whether we can service your door.
+                </p>
+                <CallButton onPhone={props.onPhone} />
+              </div>
+            )}
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-bold text-zinc-300">How many garage doors would you like us to service?</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {DOOR_COUNT_OPTIONS.map(o => (
+                <button key={o.id} type="button" onClick={() => set({ doorCount: o.id })} className={optionBtn(answers.doorCount === o.id)} aria-pressed={answers.doorCount === o.id}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-sm text-zinc-500">
+              The ${BUSINESS.promotionalPrice} offer covers one qualifying residential garage door. We can service additional
+              doors for ${BUSINESS.promotionalPrice} per door.
             </p>
-            <CallButton onPhone={props.onPhone} />
-          </div>
-        )}
-      </fieldset>
-      <fieldset>
-        <legend className="mb-2 text-sm font-bold text-zinc-300">How many garage doors would you like us to service?</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {DOOR_COUNT_OPTIONS.map(o => (
-            <button key={o.id} type="button" onClick={() => set({ doorCount: o.id })} className={optionBtn(answers.doorCount === o.id)} aria-pressed={answers.doorCount === o.id}>
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-sm text-zinc-500">
-          The ${BUSINESS.promotionalPrice} offer covers one qualifying residential garage door. We can service additional
-          doors for ${BUSINESS.promotionalPrice} per door.
-        </p>
-      </fieldset>
+          </fieldset>
+        </>
+      )}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2">
         {row("Appointment window", `${prettyDay(props.date)} · ${windowLabel(props.window)}`)}
         {row("Service address", formatAddress(props.contact))}
-        {row("Service", `$${BUSINESS.promotionalPrice} Garage Door Tune-Up with Roller Replacement${answers.doorCount === "two-plus" ? ` — $${BUSINESS.promotionalPrice} per door` : ""}`)}
+        {general
+          ? row("Service", "Garage door service visit — repairs, quotes, or maintenance")
+          : row("Service", `$${BUSINESS.promotionalPrice} Garage Door Tune-Up with Roller Replacement${answers.doorCount === "two-plus" ? ` — $${BUSINESS.promotionalPrice} per door` : ""}`)}
+        {general && props.contact.issue ? row("What's going on", props.contact.issue) : null}
       </div>
       <p className="text-sm text-zinc-400">
         No payment is required today. We&rsquo;ll contact you by text or phone to confirm the appointment before it is

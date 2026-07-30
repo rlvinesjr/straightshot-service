@@ -26,9 +26,10 @@ function rateLimited(ip: string): boolean {
 }
 
 async function createWithUniqueReference(data: BookingPayload) {
+  const prefix = data.serviceType === "general" ? "SR" : "TU"
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
-      return await db.tuneUpBooking.create({ data: { ...data, reference: makeReference() } })
+      return await db.tuneUpBooking.create({ data: { ...data, reference: makeReference(prefix) } })
     } catch (error) {
       const collision = error instanceof Error && "code" in error && (error as { code?: string }).code === "P2002"
       if (!collision || attempt === 3) throw error
@@ -38,8 +39,9 @@ async function createWithUniqueReference(data: BookingPayload) {
 }
 
 // POST /api/door-estimator/tuneup-booking
-// body.kind: "standard" (self-scheduled request) | "callback" (call_required /
-// service_area_review lead). Validation and routing are re-checked server-side.
+// body.kind: "standard" ($129 tune-up) | "general" (service/quote visit) |
+// "callback" (call_required / service_area_review lead). Validation and
+// routing are re-checked server-side.
 export async function POST(request: Request) {
   const headers = publicCorsHeaders(request)
   try {
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
       return Response.json({ reference: makeReference(), status: "requested" }, { status: 201, headers })
     }
 
-    const kind = raw.kind === "callback" ? "callback" : "standard"
+    const kind = raw.kind === "callback" ? "callback" : raw.kind === "general" ? "general" : "standard"
     const result = validateBooking(raw, kind)
     if (!result.ok) {
       const [firstError] = Object.values(result.errors)
@@ -82,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     // Advisory hold check — the window may have filled while they typed.
-    if (kind === "standard" && data.requestedDate && data.requestedWindow) {
+    if (kind !== "callback" && data.requestedDate && data.requestedWindow) {
       const stillOpen = await getBookingProvider().reserve(data.requestedDate, data.requestedWindow)
       if (!stillOpen) {
         return Response.json(

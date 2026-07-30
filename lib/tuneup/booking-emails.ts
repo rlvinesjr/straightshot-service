@@ -13,6 +13,7 @@ import { formatPhone, windowLabel, type BookingStatus } from "./booking"
 export type BookingRecord = {
   reference: string
   status: string
+  serviceType: string
   firstName: string
   lastName: string | null
   phone: string
@@ -62,18 +63,24 @@ function prettyDate(key: string | null): string {
 // Receipt for the customer: confirms we RECEIVED the request — explicitly
 // not a final confirmation, matching the on-screen policy.
 export function bookingReceiptEmail(b: BookingRecord): { subject: string; html: string } {
+  const general = b.serviceType === "general"
+  const serviceName = general ? "garage door service" : "$129 garage door tune-up"
   return {
-    subject: `We received your $129 tune-up request (${b.reference})`,
+    subject: general
+      ? `We received your service request (${b.reference})`
+      : `We received your $129 tune-up request (${b.reference})`,
     html: shell(`
       <h2 style="margin:0 0 12px">Request received, ${b.firstName}</h2>
-      <p>We received your $129 garage door tune-up request for <strong>${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}</strong>. We'll contact you shortly to confirm the appointment.</p>
+      <p>We received your ${serviceName} request for <strong>${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}</strong>. We'll contact you shortly to confirm the appointment.</p>
       <p style="margin:16px 0 4px"><strong>Request reference:</strong> ${b.reference}<br>
       <strong>Service address:</strong> ${fullAddress(b)}<br>
       <strong>We'll reach you by:</strong> text or phone at ${formatPhone(b.phone)}</p>
       <p><strong>Please don't consider the appointment final until you receive our confirmation.</strong></p>
-      <p>${b.doorCount === "two-plus"
-        ? `The $129 covers the tune-up service and ${rollerPhrase()} per qualifying standard residential door — since you have more than one door, we'll confirm the door count, total, and time needed when we confirm your appointment.`
-        : `The $129 covers the tune-up service and ${rollerPhrase()} for one qualifying standard residential door.`} Any additional work is always explained and priced for your approval first.</p>
+      <p>${general
+        ? `The technician will look at what you described${b.notes ? ` ("${b.notes.slice(0, 120)}${b.notes.length > 120 ? "..." : ""}")` : ""} and give you straight answers and pricing on site — no work is ever done without your approval.`
+        : b.doorCount === "two-plus"
+          ? `The $129 covers the tune-up service and ${rollerPhrase()} per qualifying standard residential door — since you have more than one door, we'll confirm the door count, total, and time needed when we confirm your appointment.`
+          : `The $129 covers the tune-up service and ${rollerPhrase()} for one qualifying standard residential door.`} ${general ? "" : "Any additional work is always explained and priced for your approval first."}</p>
       <p>Questions, changes, or urgent service? Reply to this email or call <a href="tel:${OFFICE_TEL}" style="color:#00a02e"><strong>${BUSINESS.phoneNumber}</strong></a>.</p>
     `),
   }
@@ -87,19 +94,22 @@ const STATUS_HEADLINE: Record<string, string> = {
 
 // Alert for the office with everything needed to confirm or triage.
 export function bookingBusinessAlert(b: BookingRecord): { subject: string; html: string } {
+  const general = b.serviceType === "general"
   const name = [b.firstName, b.lastName].filter(Boolean).join(" ")
   const when = b.requestedDate ? `${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}` : "no window selected"
+  const kindLabel = general ? "SERVICE REQUEST" : b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"
   return {
-    subject: `${b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"} ${b.reference} — ${name} (${when})${b.doorCount === "two-plus" ? " — 2+ DOORS" : ""}`,
+    subject: `${kindLabel} ${b.reference} — ${name} (${when})${b.doorCount === "two-plus" ? " — 2+ DOORS" : ""}`,
     html: shell(`
-      <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${STATUS_HEADLINE[b.status] ?? b.status}</h2>
+      <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${general ? "General service appointment request" : STATUS_HEADLINE[b.status] ?? b.status}</h2>
       <p><strong>${name}</strong><br>
       Phone: <a href="tel:${b.phone}"><strong>${formatPhone(b.phone)}</strong></a><br>
       ${b.email ? `Email: <a href="mailto:${b.email}">${b.email}</a><br>` : ""}
       Address: ${fullAddress(b)}</p>
       <p><strong>Requested:</strong> ${when}<br>
-      <strong>Residential:</strong> ${b.doorOperatingStatus === "residential" ? "yes" : b.doorOperatingStatus === "not-sure-if-residential" ? "customer wasn't sure" : "—"} · <strong>Doors:</strong> ${b.doorCount === "two-plus" ? "two or more ($129/door)" : b.doorCount ?? "—"}<br>
-      ${b.notes ? `<strong>Notes:</strong> ${b.notes}<br>` : ""}
+      ${general
+        ? `<strong>Issue:</strong> ${b.notes ?? "—"}<br>`
+        : `<strong>Residential:</strong> ${b.doorOperatingStatus === "residential" ? "yes" : b.doorOperatingStatus === "not-sure-if-residential" ? "customer wasn't sure" : "—"} · <strong>Doors:</strong> ${b.doorCount === "two-plus" ? "two or more ($129/door)" : b.doorCount ?? "—"}<br>${b.notes ? `<strong>Notes:</strong> ${b.notes}<br>` : ""}`}
       <strong>Status:</strong> ${b.status} · <strong>Ref:</strong> ${b.reference}<br>
       <strong>Source:</strong> ${b.source ?? "tuneup-landing"}${b.utmSource ? ` · utm_source=${b.utmSource}` : ""}${b.utmCampaign ? ` · utm_campaign=${b.utmCampaign}` : ""}</p>
       <p style="font-size:13px;color:#888">Text or call to confirm, then mark it on the schedule.</p>

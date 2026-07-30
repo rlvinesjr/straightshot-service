@@ -18,6 +18,7 @@ import {
   formatAddress,
   type Contact,
   type ConfirmAnswers,
+  type BookingVariant,
 } from "./steps"
 
 type Phase = "window" | "contact" | "confirm" | "done"
@@ -30,7 +31,7 @@ const PHASE_LABELS: Record<string, { n: number; label: string }> = {
 const TOTAL_STEPS = 3
 
 // State pre-filled — every job is in East Texas; still editable.
-const emptyContact: Contact = { fullName: "", phone: "", email: "", serviceAddress: "", city: "", state: "TX", zipCode: "", hp: "" }
+const emptyContact: Contact = { fullName: "", phone: "", email: "", serviceAddress: "", city: "", state: "TX", zipCode: "", issue: "", hp: "" }
 
 export type ConfirmedBooking = {
   reference: string
@@ -38,9 +39,10 @@ export type ConfirmedBooking = {
   window: string
   address: string
   contactMethod: string
+  serviceLabel: string
 }
 
-export default function BookingFlow() {
+export default function BookingFlow({ variant = "tuneup" }: { variant?: BookingVariant }) {
   const [phase, setPhase] = useState<Phase>("window")
   const [days, setDays] = useState<DayAvailability[] | null>(null)
   const [availabilityFailed, setAvailabilityFailed] = useState(false)
@@ -108,6 +110,7 @@ export default function BookingFlow() {
     if (!/^[A-Za-z]{2}$/.test(contact.state.trim())) errors.state = "2-letter state"
     if (!/^\d{5}$/.test(contact.zipCode.trim())) errors.zipCode = "5-digit ZIP"
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(contact.email.trim())) errors.email = "Please enter a valid email address"
+    if (variant === "general" && contact.issue.trim().length < 5) errors.issue = "Please tell us what's going on with the door"
     setContactErrors(errors)
     if (Object.keys(errors).length === 0) {
       setSubmitError(undefined)
@@ -132,14 +135,14 @@ export default function BookingFlow() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kind: "standard",
+          kind: variant === "general" ? "general" : "standard",
           ...contact,
           ...answers,
           requestedDate: date,
           requestedWindow: window_,
           consentAccepted: true, // the review screen states the no-payment + confirmation policy
           ...getAttribution(),
-          source: "tuneup-landing",
+          source: variant === "general" ? "booking-page" : "tuneup-landing",
         }),
       })
       const data = (await res.json().catch(() => ({}))) as { reference?: string; error?: string; code?: string }
@@ -162,6 +165,7 @@ export default function BookingFlow() {
         window: window_,
         address: formatAddress(contact),
         contactMethod: "text or phone",
+        serviceLabel: variant === "general" ? "Garage Door Service Visit" : "$129 Garage Door Tune-Up",
       })
       setPhase("done")
     } catch {
@@ -200,6 +204,7 @@ export default function BookingFlow() {
           errors={contactErrors}
           date={date}
           window={window_}
+          variant={variant}
           onChange={setContact}
           onContinue={toConfirm}
           onChangeTime={changeTime}
@@ -211,6 +216,7 @@ export default function BookingFlow() {
           answers={answers}
           date={date}
           window={window_}
+          variant={variant}
           submitting={submitting}
           error={submitError}
           onChangeAnswers={updateAnswers}
@@ -240,7 +246,7 @@ function icsHref(booking: ConfirmedBooking): string {
     `UID:${booking.reference}@straightshotoverhead.com`,
     `DTSTART;TZID=${SCHEDULING.timezone}:${stamp}`,
     `DTEND;TZID=${SCHEDULING.timezone}:${end}`,
-    `SUMMARY:Tentative: $129 Garage Door Tune-Up (${booking.reference})`,
+    `SUMMARY:Tentative: ${booking.serviceLabel} (${booking.reference})`,
     `DESCRIPTION:Arrival window ${windowLabel(booking.window)}. Not final until ${BUSINESS.companyName} confirms by ${booking.contactMethod}. Questions: ${BUSINESS.phoneNumber}`,
     `LOCATION:${booking.address}`,
     "STATUS:TENTATIVE",

@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   return Response.json(records.map(b => ({
     reference: b.reference,
     status: b.status,
+    serviceType: b.serviceType,
     createdAt: b.createdAt,
     firstName: b.firstName,
     lastName: b.lastName,

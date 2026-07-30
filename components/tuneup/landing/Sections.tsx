@@ -347,7 +347,7 @@ export function FinalCta({ onPrimary, onPhone }: CtaProps) {
 
 // ---- 11. Footer -----------------------------------------------------------------
 
-export function TuneUpFooter({ onPhone }: { onPhone: () => void }) {
+export function TuneUpFooter({ onPhone, disclosure = OFFER_DISCLOSURE }: { onPhone: () => void; disclosure?: string | null }) {
   return (
     <footer className="border-t border-zinc-800 px-4 pb-28 pt-10 md:pb-10">
       <div className="mx-auto max-w-3xl text-center text-sm text-zinc-500">
@@ -374,7 +374,7 @@ export function TuneUpFooter({ onPhone }: { onPhone: () => void }) {
           )}
           <a href={BUSINESS.websiteUrl} className="hover:text-zinc-300">straightshotoverhead.com</a>
         </p>
-        <p className="mx-auto mt-5 max-w-2xl text-xs leading-relaxed text-zinc-600">{OFFER_DISCLOSURE}</p>
+        {disclosure && <p className="mx-auto mt-5 max-w-2xl text-xs leading-relaxed text-zinc-600">{disclosure}</p>}
       </div>
     </footer>
   )

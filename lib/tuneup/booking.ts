@@ -83,6 +83,7 @@ export function windowLabel(id: string | null): string {
 // ---- request validation -------------------------------------------------
 
 export type BookingPayload = {
+  serviceType: string
   firstName: string
   lastName: string
   phone: string
@@ -127,10 +128,13 @@ export const RESIDENTIAL_OPTIONS = [
 
 // Validates and normalizes a raw request body into a storable payload.
 // `kind` controls how much is required:
-//   "standard"  — full self-schedule request: name, phone, email, address,
+//   "standard"  — $129 tune-up self-schedule: name, phone, email, address,
 //                 residential answer, door count, date + window
+//   "general"   — general service/quote visit: same, but the residential and
+//                 door-count questions are replaced by a required issue
+//                 description (stored in notes)
 //   "callback"  — call_required / service_area_review lead (name + phone only)
-export function validateBooking(raw: Record<string, unknown>, kind: "standard" | "callback"): ValidationResult {
+export function validateBooking(raw: Record<string, unknown>, kind: "standard" | "general" | "callback"): ValidationResult {
   const errors: Record<string, string> = {}
 
   // "Full name" is a single field in the flow; split it for storage. The
@@ -151,7 +155,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   const emailRaw = sanitizeText(raw.email, 120)
   let email: string | null = null
   if (emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailRaw)) email = emailRaw.toLowerCase()
-  if (kind === "standard" && !email) errors.email = "Please enter a valid email address for your appointment details"
+  if (kind !== "callback" && !email) errors.email = "Please enter a valid email address for your appointment details"
   else if (emailRaw && !email) errors.email = "That email address doesn't look right"
 
   const preferredContactMethod = raw.preferredContactMethod === "phone" ? "phone" : "text"
@@ -162,7 +166,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   const city = sanitizeText(raw.city, 80)
   const state = sanitizeText(raw.state, 20).toUpperCase()
   let zipCode = sanitizeText(raw.zipCode, 10)
-  if (kind === "standard") {
+  if (kind !== "callback") {
     if (serviceAddress.length < 5) errors.serviceAddress = "Please enter the street address"
     if (city.length < 2) errors.city = "Please enter the city"
     if (!/^[A-Z]{2}$/.test(state)) errors.state = "Please enter the 2-letter state"
@@ -180,14 +184,17 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   }
   const doorOperatingStatus =
     residential === "yes" ? "residential" : residential === "not-sure" ? "not-sure-if-residential" : sanitizeText(raw.doorOperatingStatus, 30) || ""
-  const issueType = sanitizeText(raw.issueType, 30)
+  const issueType = kind === "general" ? "general-service" : sanitizeText(raw.issueType, 30)
   const specialConditions: string[] = []
 
-  const notes = sanitizeText(raw.notes, 500) || null
+  // General bookings carry a required free-text issue description (stored in notes).
+  const issue = sanitizeText(raw.issue, 500)
+  if (kind === "general" && issue.length < 5) errors.issue = "Please tell us what's going on with the door"
+  const notes = issue || sanitizeText(raw.notes, 500) || null
 
   let requestedDate: string | null = null
   let requestedWindow: string | null = null
-  if (kind === "standard") {
+  if (kind !== "callback") {
     const date = sanitizeText(raw.requestedDate, 10)
     const window = sanitizeText(raw.requestedWindow, 20)
     if (!isSelectableDate(date)) errors.requestedDate = "Please pick an available date"
@@ -199,7 +206,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   // Submitting the review screen (which states the no-payment and
   // confirmation policy) is the acknowledgement — no separate checkbox.
   const consentAccepted = raw.consentAccepted === true
-  if (kind === "standard" && !consentAccepted) errors.consentAccepted = "Please confirm the service acknowledgements"
+  if (kind !== "callback" && !consentAccepted) errors.consentAccepted = "Please confirm the service acknowledgements"
 
   const eligibility = zipEligibility(zipCode)
   const status: BookingStatus =
@@ -214,6 +221,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   return {
     ok: true,
     data: {
+      serviceType: kind === "general" ? "general" : "tuneup",
       firstName,
       lastName,
       phone: phone as string,
@@ -232,7 +240,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
       requestedWindow,
       serviceAreaEligible: eligibility === "eligible",
       status,
-      source: attribution("source") ?? "tuneup-landing",
+      source: attribution("source") ?? (kind === "general" ? "booking-page" : "tuneup-landing"),
       utmSource: attribution("utmSource"),
       utmMedium: attribution("utmMedium"),
       utmCampaign: attribution("utmCampaign"),
@@ -244,11 +252,12 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
   }
 }
 
-// Short human-friendly reference like "TU-8K3F2" shown on the confirmation
-// screen and in office alerts. Uniqueness is enforced by the DB column.
-export function makeReference(): string {
+// Short human-friendly reference like "TU-8K3F2" (tune-ups) or "SR-8K3F2"
+// (general service requests) shown on the confirmation screen and in office
+// alerts. Uniqueness is enforced by the DB column.
+export function makeReference(prefix: "TU" | "SR" = "TU"): string {
   const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
   let out = ""
   for (let i = 0; i < 5; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]
-  return `TU-${out}`
+  return `${prefix}-${out}`
 }

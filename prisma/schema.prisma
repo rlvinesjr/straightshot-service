@@ -121,6 +121,7 @@ model TuneUpBooking {
   token                  String    @unique @default(cuid())
   reference              String    @unique
   status                 String    @default("requested")
+  serviceType            String    @default("tuneup") // tuneup | general
   firstName              String
   lastName               String?
   phone                  String
