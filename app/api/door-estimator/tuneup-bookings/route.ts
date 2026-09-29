@@ -37,5 +37,17 @@ export async function GET(request: Request) {
     source: b.source,
     utmSource: b.utmSource,
     utmCampaign: b.utmCampaign,
+    // repair requests (/lp/*): delivery + speed-to-lead. Click IDs are NOT listed —
+    // only whether one exists; the job software fetches them via /attribution.
+    residentialConfirmed: b.residentialConfirmed,
+    landingKeyword: b.landingKeyword,
+    paidClick: !!(b.gclid || b.gbraid || b.wbraid),
+    notifyStatus: b.notifyStatus,
+    notifyAttempts: b.notifyAttempts,
+    notifyError: b.notifyError,
+    notifiedAt: b.notifiedAt,
+    firstResponseAt: b.firstResponseAt,
+    bookedAt: b.bookedAt,
+    fieldJobId: b.fieldJobId,
   })))
 }

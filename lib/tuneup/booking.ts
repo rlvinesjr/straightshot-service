@@ -255,7 +255,7 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
 // Short human-friendly reference like "TU-8K3F2" (tune-ups) or "SR-8K3F2"
 // (general service requests) shown on the confirmation screen and in office
 // alerts. Uniqueness is enforced by the DB column.
-export function makeReference(prefix: "TU" | "SR" = "TU"): string {
+export function makeReference(prefix: "TU" | "SR" | "RR" = "TU"): string {
   const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
   let out = ""
   for (let i = 0; i < 5; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)]

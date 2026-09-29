@@ -17,3 +17,10 @@ start.log
 prisma/data/
 data/
 *.log
+
+# Google / OAuth credentials and tokens — never commit
+client_secret*.json
+credentials*.json
+*token*.json
+google-ads.yaml
+.secrets/

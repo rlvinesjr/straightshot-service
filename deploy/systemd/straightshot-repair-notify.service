@@ -1,0 +1,8 @@
+[Unit]
+Description=StraightShot repair-request office email retry
+After=straightshot-door-estimator.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/door-estimator/.env
+ExecStart=/bin/sh -c 'curl -s -X POST -H "X-Door-Estimator-Key: $DOOR_ESTIMATOR_ADMIN_KEY" http://127.0.0.1:3001/api/door-estimator/repair-notify-retry'

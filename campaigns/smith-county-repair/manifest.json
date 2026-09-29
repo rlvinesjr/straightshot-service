@@ -1,0 +1,173 @@
+{
+  "manifestVersion": 1,
+  "mode": "DRY_RUN",
+  "generated": "2026-09-28",
+  "note": "Nothing in this file has been sent to Google Ads. No account integration exists. It is the reviewed source for a manual build (setup/google-ads-build.md) or a future API run. Validate with: npm run validate:campaign",
+  "idempotencyKey": "sso-search-smith-county-repair-v1",
+  "idempotencyRule": "Before creating anything, look up a campaign named exactly `campaign.name` in the account. If it exists, update it; never create a second one.",
+
+  "campaign": {
+    "name": "SSO — Search — Smith County — Repair",
+    "status": "PAUSED",
+    "type": "SEARCH",
+    "networks": {
+      "googleSearch": true,
+      "searchPartners": false,
+      "searchPartnersDecision": "IMPLEMENTATION DECISION (not specified by the report): OFF at launch so the $100/day budget and the first weeks of search-term and conversion data come from Google Search only. Revisit after the search-terms audit has enough volume.",
+      "displayExpansion": false
+    },
+    "performanceMax": false,
+    "budget": {
+      "amountMicros": 100000000,
+      "currency": "USD",
+      "type": "AVERAGE_DAILY",
+      "explanation": "Average daily budget, not a hard cap: Google can spend up to 2x ($200) on a single day, and charges at most 30.4x the daily budget ($3,040) in a month when the budget is unchanged all month.",
+      "automaticIncreases": false
+    },
+    "bidding": {
+      "status": "DECISION_REQUIRED",
+      "conversionHistory": "None found. No Google tag or Ads conversion action exists on straightshotoverhead.com or estimate.straightshotoverhead.com (checked 2026-09-28); account history unknown.",
+      "proposal": "Start on Maximize clicks WITH a maximum CPC bid limit that Ricky chooses (Keyword Planner's historical top-of-page range for this keyword in Smith County was $12.65–$47.77 — an estimate, not a forecast). Once the lead conversion has recorded steady volume, move to Maximize conversions. No CPA or ROAS target is set: none was provided, and none will be invented.",
+      "maxCpcLimitUsd": null,
+      "targetCpaUsd": null,
+      "targetRoas": null
+    },
+    "locations": {
+      "positive": [
+        {
+          "criteriaId": 9059615,
+          "name": "Smith County",
+          "canonicalName": "Smith County,Texas,United States",
+          "targetType": "County",
+          "parentId": 21176,
+          "parentCanonicalName": "Texas,United States",
+          "verifiedFrom": "Google Ads API geotargets-2026-08-12.csv (Criteria ID 9059615, Status Active)",
+          "notARadius": true
+        }
+      ],
+      "positiveLocationOption": "PRESENCE",
+      "positiveLocationOptionLabel": "Presence: people in or regularly in your targeted locations",
+      "excludedLocationsFile": "excluded-locations.csv",
+      "excludedLocationsRule": "All active countries in Google's geotarget list except the United States (218). Texas (21176) and the United States (2840) are parents of the target and are never excluded; no US state or county is excluded. Review the file before upload.",
+      "accuracyCaveat": "Location targeting is based on signals Google infers; some clicks will still come from outside Smith County. The landing page and the call confirm the address."
+    },
+    "languages": ["en"],
+    "adSchedule": {
+      "status": "DECISION_REQUIRED",
+      "timezone": "America/Chicago",
+      "note": "Set the Google Ads account time zone to (GMT-06:00) Central Time before building, if it is not already — it cannot be changed later. Run the ads during hours someone actually answers leads; that coverage has not been confirmed yet. No emergency, 24/7 or same-day promises are made anywhere in the ads or page."
+    },
+    "trackingTemplate": null,
+    "finalUrlSuffix": "utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={adgroupid}&utm_term={keyword}",
+    "autoTagging": "REQUIRED (account setting) — the gclid is what ties a paid job back to the click."
+  },
+
+  "adGroups": [
+    {
+      "name": "Garage Door Repair",
+      "status": "ENABLED",
+      "keywords": [
+        { "text": "garage door repair", "matchType": "PHRASE", "note": "Phrase match is meaning-based, not literal: audit actual search terms weekly (prompts/search-terms-audit.md)." }
+      ],
+      "responsiveSearchAd": {
+        "finalUrl": "https://estimate.straightshotoverhead.com/lp/garage-door-repair",
+        "path1": "garage-door",
+        "path2": "repair",
+        "headlines": [
+          { "text": "Garage Door Repair", "pin": "HEADLINE_1" },
+          { "text": "StraightShot Overhead" },
+          { "text": "Smith County Door Repair" },
+          { "text": "Residential Door Repair" },
+          { "text": "Garage Door Stuck?" },
+          { "text": "Door Not Opening?" },
+          { "text": "Noisy Garage Door?" },
+          { "text": "Broken Spring Repair" },
+          { "text": "Garage Door Cable Repair" },
+          { "text": "Garage Door Opener Repair" },
+          { "text": "Rollers And Tracks Repaired" },
+          { "text": "Request Garage Door Service" },
+          { "text": "Tell Us About Your Door" },
+          { "text": "Book Garage Door Repair" },
+          { "text": "Get Your Door Working Again" }
+        ],
+        "descriptions": [
+          "Garage door stuck or not opening? Request residential repair in Smith County, Texas.",
+          "Springs, cables, rollers, tracks and openers. Tell us what your garage door is doing.",
+          "StraightShot Overhead serves Smith County homeowners. Request garage door repair today.",
+          "Send your contact details and door problem. We will contact you to arrange service."
+        ]
+      }
+    }
+  ],
+
+  "assets": {
+    "callouts": ["Residential Repairs", "Smith County Service", "Springs And Cables", "Rollers And Tracks", "Opener Repairs"],
+    "structuredSnippet": {
+      "header": "Service catalog",
+      "headerNote": "\"Service catalog\" is a predefined structured-snippet header; confirm it is offered for English in the account when building.",
+      "values": ["Spring repair", "Cable repair", "Roller repair", "Track repair", "Opener repair"]
+    },
+    "sitelinks": [
+      {
+        "status": "READY",
+        "text": "Request Repair", "description1": "Tell us about your door", "description2": "Request a service appointment",
+        "finalUrl": "https://estimate.straightshotoverhead.com/book",
+        "verified": "200 OK 2026-09-28 — the existing general service booking page (appointment request; confirmed by phone)."
+      },
+      {
+        "status": "READY_WITH_REVIEW",
+        "text": "Repair Services", "description1": "Springs, cables and rollers", "description2": "Residential repair options",
+        "finalUrl": "https://straightshotoverhead.com/garage-door-repair-tyler-tx",
+        "verified": "200 OK 2026-09-28 — the existing repair page (H1 \"Garage Door Repair in Tyler, TX\").",
+        "review": "That page says \"same-day garage door repair whenever possible\" and mentions a guarantee. Conditional same-day wording is allowed, but Ricky should confirm both statements are accurate before this sitelink runs."
+      },
+      {
+        "status": "READY",
+        "text": "Recent Repair Jobs", "description1": "See examples of our work", "description2": "Browse completed repair jobs",
+        "finalUrl": "https://straightshotoverhead.com/recent-jobs",
+        "verified": "200 OK 2026-09-28 — published job write-ups, including repairs."
+      },
+      {
+        "status": "HELD",
+        "text": "About StraightShot", "description1": "Meet the business owner", "description2": "Learn about StraightShot",
+        "finalUrl": null,
+        "reason": "No about page exists (/about and /about-us return 404). Held rather than pointed at a duplicate URL."
+      }
+    ],
+    "call": {
+      "status": "HELD",
+      "phone": "(903) 245-1182",
+      "reason": "The number is current (it is the main number on straightshotoverhead.com and the landing page), but answering coverage has not been confirmed. Add the call asset once it is, scheduled to those hours."
+    }
+  },
+
+  "negativeKeywords": {
+    "file": "negatives-proposal.csv",
+    "level": "CAMPAIGN",
+    "matchType": "PHRASE",
+    "status": "PROPOSED — review before upload"
+  },
+
+  "conversionActions": [
+    {
+      "name": "Repair Request (website)",
+      "source": "WEBSITE (Google tag, event conversion)",
+      "category": "SUBMIT_LEAD_FORM",
+      "firesWhen": "the server has saved the lead (never on a storage failure)",
+      "transactionId": "lead reference RR-XXXXX (de-duplicates a double fire)",
+      "count": "ONE",
+      "value": "none",
+      "proposedGoal": "PRIMARY at launch (DECISION_REQUIRED)"
+    },
+    {
+      "name": "Paid Repair Job (offline)",
+      "source": "IMPORT — conversions from clicks (file upload)",
+      "category": "PURCHASE",
+      "firesWhen": "an invoice on a job created from the ad lead is PAID in full in StraightShot Field",
+      "value": "the invoice's pre-tax subtotal, per upload row",
+      "count": "EVERY",
+      "proposedGoal": "SECONDARY at launch — reported for ROAS, not bid on, until paid jobs arrive regularly (DECISION_REQUIRED)",
+      "nameMustMatch": "The StraightShot Field setting ads_offline_conversion_name (default \"Paid Repair Job (offline)\")."
+    }
+  ]
+}

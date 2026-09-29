@@ -1,0 +1,18 @@
+Keyword,Match Type,Level,Recommendation,Reason
+indeed,Phrase,Campaign,Add,Job-board searches (employment)
+ziprecruiter,Phrase,Campaign,Add,Job-board searches (employment)
+salary,Phrase,Campaign,Add,Employment research
+salaries,Phrase,Campaign,Add,Inflection of salary — phrase negatives do not cover plurals
+apprenticeship,Phrase,Campaign,Add,Training / employment
+apprenticeships,Phrase,Campaign,Add,Inflection of apprenticeship
+school,Phrase,Campaign,Add,Training
+schools,Phrase,Campaign,Add,Inflection of school
+course,Phrase,Campaign,Add,Training
+courses,Phrase,Campaign,Add,Inflection of course
+diy,Phrase,Campaign,Add,Do-it-yourself research
+do it yourself,Phrase,Campaign,Add,Spelled-out form of diy
+job,Phrase,Campaign,DECIDE,"Blocks employment searches, but also customers who call the work a job (""garage door repair job cost""). Safer alternative: add ""jobs"" + ""hiring"" + ""careers"" and review search terms before adding ""job""."
+jobs,Phrase,Campaign,Add,Employment searches (plural is rarely a customer phrase)
+free,Phrase,Campaign,DECIDE,"Blocks freebie seekers, but also customers searching ""free estimate"" — a common buying phrase. Recommend NOT adding until search terms show it wasting spend."
+coupon,Phrase,Campaign,DECIDE,"Blocks coupon hunters, who can still be paying customers. No coupon is offered, so the clicks may convert poorly — decide after reviewing search terms."
+coupons,Phrase,Campaign,DECIDE,Inflection of coupon — same decision as coupon
