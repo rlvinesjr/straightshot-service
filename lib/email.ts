@@ -2,6 +2,7 @@
 // apps send mail the same way (STARTTLS + AUTH LOGIN through the same mailbox).
 // Config comes from env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM,
 // optional MAIL_REPLY_TO. All sends are best-effort — callers use tryEmail.
+// `to` may list several addresses separated by commas (e.g. LEAD_ALERT_TO="a@x.com, b@x.com").
 import net from "node:net"
 import tls from "node:tls"
 
@@ -92,14 +93,19 @@ export async function sendMail(message: Message): Promise<void> {
     const fromAddr = /<.*>/.test(from) ? from.match(/<(.*)>/)![1] : from
     write(`MAIL FROM:<${fromAddr}>`)
     expect(await reader.read(), 250)
-    write(`RCPT TO:<${message.to.trim()}>`)
-    expect(await reader.read(), 250, 251)
+    // "a@x.com, b@x.com" → one RCPT per address, so an alert can go to several inboxes
+    const recipients = message.to.split(/[,;]/).map(a => a.trim()).filter(Boolean)
+    if (!recipients.length) throw new Error("No recipient")
+    for (const rcpt of recipients) {
+      write(`RCPT TO:<${rcpt}>`)
+      expect(await reader.read(), 250, 251)
+    }
     write("DATA")
     expect(await reader.read(), 354)
 
     const headers = [
       `From: ${from}`,
-      `To: ${message.to.trim()}`,
+      `To: ${recipients.join(", ")}`,
       ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
       `Subject: ${message.subject.replace(/[\r\n]/g, " ")}`,
       "MIME-Version: 1.0",
