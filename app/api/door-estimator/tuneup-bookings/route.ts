@@ -49,5 +49,11 @@ export async function GET(request: Request) {
     firstResponseAt: b.firstResponseAt,
     bookedAt: b.bookedAt,
     fieldJobId: b.fieldJobId,
+    // website shop requests: every selection + the saved estimate, and the customer summary email's delivery
+    requestSnapshot: b.requestSnapshot ? JSON.parse(b.requestSnapshot) : null,
+    customerEmailStatus: b.customerEmailStatus,
+    customerEmailAttempts: b.customerEmailAttempts,
+    customerEmailError: b.customerEmailError,
+    customerEmailSentAt: b.customerEmailSentAt,
   })))
 }

@@ -11,7 +11,8 @@
     "validate:tuneup": "tsx scripts/validate-tuneup-booking.ts",
     "validate:repair": "tsx scripts/validate-repair-lead.ts",
     "e2e:repair": "node scripts/e2e-repair-lead.mjs",
-    "validate:campaign": "node scripts/validate-campaign.mjs"
+    "validate:campaign": "node scripts/validate-campaign.mjs",
+    "validate:shop": "tsx scripts/validate-shop-request.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

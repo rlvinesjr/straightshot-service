@@ -168,6 +168,17 @@ model TuneUpBooking {
   bookedAt               DateTime?
   fieldJobId             Int?
 
+  // --- shop product requests (website Shop: openers, doors) ---
+  // requestSnapshot: the versioned, validated request summary (JSON, schema "straightshot.shop-request" v1) saved
+  // with the booking. The customer email, the website confirmation and its PDF are all rendered from it, so a later
+  // price or catalog change never rewrites what the customer asked for. submissionId (above) makes resends idempotent.
+  requestSnapshot        String?
+  // customer summary email: pending -> sending -> sent | failed (retried by the notify timer)
+  customerEmailStatus    String?
+  customerEmailAttempts  Int       @default(0)
+  customerEmailError     String?
+  customerEmailSentAt    DateTime?
+
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 }

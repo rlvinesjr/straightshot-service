@@ -9,6 +9,10 @@
 import { tryEmail } from "@/lib/email"
 import { BUSINESS, rollerPhrase } from "./booking-config"
 import { formatPhone, windowLabel, type BookingStatus } from "./booking"
+import { summaryFromBooking, emailHTML, detailRows } from "./summary-core.mjs"
+
+const esc = (s: unknown) =>
+  String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
 
 export type BookingRecord = {
   reference: string
@@ -33,6 +37,7 @@ export type BookingRecord = {
   source: string | null
   utmSource: string | null
   utmCampaign: string | null
+  requestSnapshot?: string | null
 }
 
 const OFFICE_TEL = BUSINESS.phoneHref.replace("tel:", "")
@@ -63,6 +68,10 @@ function prettyDate(key: string | null): string {
 // Receipt for the customer: confirms we RECEIVED the request — explicitly
 // not a final confirmation, matching the on-screen policy.
 export function bookingReceiptEmail(b: BookingRecord): { subject: string; html: string } {
+  // Opener shop requests saved by an older website version (note format only): the branded shop summary.
+  // New shop requests carry a stored snapshot and are emailed by summary-email.ts instead.
+  const shopSummary = b.requestSnapshot ? null : summaryFromBooking({ ...b })
+  if (shopSummary) return { subject: `Your StraightShot selections - awaiting confirmation (${b.reference})`, html: emailHTML(shopSummary) }
   const general = b.serviceType === "general"
   const serviceName = general ? "garage door service" : "$129 garage door tune-up"
   return {
@@ -97,11 +106,20 @@ export function bookingBusinessAlert(b: BookingRecord): { subject: string; html:
   const general = b.serviceType === "general"
   const name = [b.firstName, b.lastName].filter(Boolean).join(" ")
   const when = b.requestedDate ? `${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}` : "no window selected"
-  const kindLabel = general ? "SERVICE REQUEST" : b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"
+  const shop = b.requestSnapshot ? summaryFromBooking({ ...b }) : null
+  const kindLabel = shop ? (shop.kind === "door" ? "DOOR INSPECTION REQUEST" : "OPENER INSTALL REQUEST") : general ? "SERVICE REQUEST" : b.status === "requested" ? "TUNE-UP REQUEST" : "TUNE-UP LEAD"
+  // Shop requests: every selection and the estimate, from the stored snapshot (escaped).
+  const shopBlock = shop
+    ? `<p style="margin:0 0 12px"><strong>${esc(shop.product.name)}</strong> · ${esc(shop.visitType.label)}<br>
+      <strong>Estimate:</strong> ${esc(shop.price.display)} <span style="color:#666">(${esc(shop.price.wording)}${shop.price.source.version ? ` · Door Pricing v${shop.price.source.version}` : ""})</span></p>
+      <table style="border-collapse:collapse;font-size:14px;margin:0 0 12px">${detailRows(shop).slice(0, shop.selections.length).map(([k, v]) => `<tr><td style="padding:3px 12px 3px 0;color:#666">${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
+      ${shop.customer.notes ? `<p style="margin:0 0 12px"><strong>Customer note:</strong> ${esc(shop.customer.notes)}</p>` : ""}`
+    : ""
   return {
     subject: `${kindLabel} ${b.reference} — ${name} (${when})${b.doorCount === "two-plus" ? " — 2+ DOORS" : ""}`,
     html: shell(`
-      <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${general ? "General service appointment request" : STATUS_HEADLINE[b.status] ?? b.status}</h2>
+      <h2 style="margin:0 0 12px;color:${b.status === "requested" ? "#111" : "#c40000"}">${shop ? esc(shop.visitType.label) + " request (website shop)" : general ? "General service appointment request" : STATUS_HEADLINE[b.status] ?? b.status}</h2>
+      ${shopBlock}
       <p><strong>${name}</strong><br>
       Phone: <a href="tel:${b.phone}"><strong>${formatPhone(b.phone)}</strong></a><br>
       ${b.email ? `Email: <a href="mailto:${b.email}">${b.email}</a><br>` : ""}
@@ -128,7 +146,8 @@ export async function notifyBooking(b: BookingRecord): Promise<void> {
   } else {
     console.log(`[tuneup-booking] LEAD_ALERT_TO not set — business alert for ${b.reference} (${b.status}) not sent`)
   }
-  if (b.email && (b.status as BookingStatus) === "requested") {
+  // Shop requests (stored snapshot) get the branded summary through the tracked, retried path in summary-email.ts.
+  if (b.email && (b.status as BookingStatus) === "requested" && !b.requestSnapshot) {
     const receipt = bookingReceiptEmail(b)
     void tryEmail(b.email, receipt.subject, receipt.html).then(sent =>
       console.log(`[tuneup-booking] ${b.reference} customer receipt ${sent ? "sent" : "FAILED"}`))
