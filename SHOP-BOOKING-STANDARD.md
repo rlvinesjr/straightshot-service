@@ -25,7 +25,7 @@ Define a versioned server-owned contract and normalize it once. Required informa
 | Customer | Name, email, phone, service address including city/state/ZIP, preferred contact method, full permitted customer notes |
 | Terms | No-payment statement, applicable inspection/fit/final-price conditions, business contact information |
 
-For doors, always retain model, insulation category, width/height or unknown size, color, windows yes/no, individual insert code/name, and any future glass, hardware, opener, or accessory selections. A generic decorative-window pricing group is not a substitute for the actual insert choice.
+For doors, retain the model internally but display the style name without a model number. Always retain insulation category, width/height or unknown size, color, windows yes/no, individual insert code/name, and any future glass, hardware, opener, or accessory selections. A generic decorative-window pricing group is not a substitute for the actual insert choice.
 
 For openers, always retain model, selected door/rail height or Not sure, and any future accessory, remote, keypad, battery, package, or quantity selections. Include the applicable installed package contents.
 
@@ -39,7 +39,7 @@ Do not render historical requests from the current editable catalog. A later pri
 - Keep the existing job-software pricing and scheduling integrations as the source of truth. Extend the shared adapter for new product types; do not build competing price books or schedulers.
 - Reuse `summary-core`, `summary-ui`, `summary-pdf`, and `summary.css`. Consolidate common source into a maintained shared module or synchronized build output for the website and email backend so the copies cannot drift.
 - The current `summaryFromBooking()` parser supports legacy opener notes only. Migrate new requests to the versioned structured snapshot, retain compatibility for old requests, and make the email notifier consume that saved snapshot. The door flow must be connected before the door shop launches.
-- Register each new product's real reference image and package data centrally. The prototype's four-product registry is not automatic future-product support. Replace its fallback to the 410 door image with a correct approved image or clearly labeled neutral placeholder; never show another product's image as though it is the selected product.
+- Register each new product's real reference image and package data centrally. The preview now registers 24 standard doors and three openers; that explicit registry is not automatic support for future products. Replace its fallback to the 410 door image with a correct approved image or clearly labeled neutral placeholder; never show another product's image as though it is the selected product.
 - Reference photos must be labeled when they do not portray the customer's selected finish/windows. Keep the simple brochure-photo approach approved by the owner; do not reintroduce generated door visualizations.
 - Keep email images publicly accessible on the business's asset host, with usable alternative text. Customer addresses and other personal information must not appear in public image URLs or public summary files. Render values as text/escaped HTML.
 - Use one successful booking reference for all three outputs. Duplicate submissions must return the original saved snapshot or a clear existing-request message, never a newly selected configuration falsely attached to an old reference. Retry handling must not create additional bookings.
@@ -52,7 +52,7 @@ Do not add a new per-page payment flow. Initial booking collects no payment. The
 
 ## Current rollout and future-page completion
 
-Audit all actual shop routes first. Connect the three known opener pages to the shared production flow; complete the door integration for the 410 page and reuse it for each subsequent door page in all three insulation categories. Retain the category/comparison navigation and existing working business integrations.
+Audit all actual shop routes first. Connect the three known opener pages to the shared production flow; complete the door integration for all 24 standard model pages in the supplied catalog and reuse it for each subsequent door page. Retain the style gallery, same-style construction switching and existing business integrations.
 
 A current or future product page is complete only when these checks pass:
 
@@ -66,30 +66,43 @@ A current or future product page is complete only when these checks pass:
 
 Document the connected routes and outstanding integration work in the deployment handoff. A visual preview or reusable template by itself does not satisfy these production checks.
 
-## How this is implemented (October 23, 2026)
+## How this is implemented (updated October 26, 2026: door shop with 24 doors)
 
-Two repositories share one contract. Keep them in step.
+Two repositories share two generated modules. Keep them in step.
 
 | Piece | Where |
 | --- | --- |
-| Snapshot contract, validation, card and email HTML, legacy opener parser | `service-app/public/assets/summary-core.js` (source). Exact copy in `door-estimator/lib/tuneup/summary-core.mjs`, written by `npm run sync:summary` in service-app. Both repos' tests fail if the copy drifts or is hand-edited. |
+| Snapshot contract, validation, card and email HTML, legacy opener parser, product registry (3 openers and 24 doors) | `service-app/public/assets/summary-core.js` (source). Exact copy in `door-estimator/lib/tuneup/summary-core.mjs`. |
+| Door catalog: 8 styles × 3 constructions, colors and finishes, inserts, window families and counts by width. No prices. | `service-app/public/assets/door-catalog.js` (source). Exact copy in `door-estimator/lib/door-estimator/door-catalog.mjs`. |
+| Keeping the copies in sync | Run `npm run sync:summary` in service-app. Both repos' checks fail if a copy drifts or is edited by hand. |
+| Door prices | `door-estimator/lib/door-estimator/shop-pricing.ts` plus `POST /api/door-estimator/shop-quote`. It reads the saved Door Pricing (Field app → Admin → Door Pricing): base door costs, window rates (`costs`, plus `woodCosts` for Walnut/Driftwood carriage windows), multiplier, rounding and minimum profit, all through `retailFromUnitCost`, the same rule the Field calculator uses. Unpriced cases return null. |
+| Door pages | `service-app/lib/door-pages.mjs` renders the gallery (`/shop/doors`, from the `public/shop-doors.html` template) and 24 door pages (`/shop/doors/<style>/<construction>`, from `public/shop-door.html`) out of the catalog. Numbered and old addresses (for example `/shop/doors/410`) redirect permanently. |
+| Browser scripts | `door-shop.js` (choices, live server prices, same-style insulation switching), `doors-gallery.js` (gallery), and the shared `shop-booking.js` flow. |
 | Save as PDF | `service-app/public/assets/summary-pdf.js` (pdf-lib 1.17.1, `pdf-lib.min.js`, MIT licence alongside) |
-| Shared booking flow (browser) | `service-app/public/assets/shop-booking.js`. Product pages supply an adapter (`refresh`, `describe`, `payload`). |
 | Opener adapter | `shop.js` + `lib/shop.mjs` (prices from the website price book, which the job software's Price Book updates) |
-| Door adapter | `door-shop.js` + `lib/doors.mjs`. Prices come only from the scheduler's calculator (`/api/door-estimator/calculate`), which uses the job software's Door Pricing. Vendor costs never leave the scheduler. |
-| Server-side snapshot building and stale-price refusal | `service-app/lib/shop-request.mjs`, `lib/booking.mjs` (sends `X-Shop-Booking-Key`) |
+| Server-side snapshot building and stale-price refusal | `service-app/lib/shop-request.mjs`, `lib/doors.mjs`, `lib/booking.mjs` (sends `X-Shop-Booking-Key`) |
 | Saving, door price re-check, idempotency, duplicates | `door-estimator/app/api/door-estimator/tuneup-booking/route.ts` + `lib/tuneup/shop-request.ts`. Stored in `TuneUpBooking.requestSnapshot`. |
 | Customer email with delivery tracking and retry | `door-estimator/lib/tuneup/summary-email.ts`. The retry runs on the existing 5-minute notify timer. |
 
-**Connected routes:** `/shop/2220l`, `/shop/6580l`, `/shop/6690l` (opener installation requests) and `/shop/doors/410` (free site inspection and measurements). `/shop` links to all of them, including the door categories Non Insulated, Vinyl Back Insulated and Steel Back Insulated.
+**Connected routes:**
+- Openers: `/shop/2220l`, `/shop/6580l` and `/shop/6690l` (installation requests).
+- Doors: the `/shop/doors` gallery and its 24 door pages (free site inspection and measurements). `/shop` links to both.
+
+**Door pricing rules:** from the vendor price book, mapped in the catalog.
+- **Window counts:** Short Panel is 4/4/5/6/7/7/8/8/8 for 8–18 ft widths. Long Panel Carriage is 2/2/2/3/3/4/4/4/4. Short-grooved carriage is 2/2/2/3/3/3/4/4/4. Long Panel follows the carriage counts.
+- **Window rates:** plain glass uses the PLAIN rate; any insert uses the WITH INSERTS rate.
+- **Always Price to confirm:** Gray, Light Cypress, Oak windows, Flush Panel windows, and any size that isn't fully chosen.
+- **Oak, solid door:** uses the wood-finish base cost.
+- **Customer-facing text:** shows style names only, never model numbers. Model numbers appear only in office notes and records.
 
 **Adding a product page:**
-1. Add the product to `PRODUCTS` in `summary-core.js`, with its approved image and package text. Run `npm run sync:summary`.
-2. Add an adapter: a door model in `lib/doors.mjs`, or an opener in `lib/shop.mjs` plus `shop-request.mjs`. Map every new option into the snapshot `selections`.
-3. Copy the booking dialog markup from an existing product page. Keep the element ids that `shop-booking.js` uses.
-4. Add tests next to `tests/shop-standard.test.mjs`. Run both repos' checks: `npm test` here, `npm run validate:shop` in door-estimator.
+1. Add the product to `door-catalog.js` (doors) or the opener adapter. Register its approved image in `PRODUCTS` in `summary-core.js`. Run `npm run sync:summary`.
+2. Map every new option into the snapshot `selections`.
+3. Product pages reuse the booking dialog markup and `shop-booking.js`.
+4. Add tests. Run `npm test` here, and `npm run validate:door-shop` and `npm run validate:shop` in door-estimator.
 5. Go through the launch checks above with an owner-approved test recipient.
 
 **Settings:**
 - `SHOP_BOOKING_KEY` must be set to the same value on both servers: hPanel for the website, `/opt/door-estimator/.env` for the scheduler. The owner generates the value.
 - `SHOP_ASSET_BASE` (optional) changes where email images load from. The default is `https://straightshotoverhead.com/assets/`.
+- The wood-finish window rates were added to the live Door Pricing on Oct 26 2026 with `door-estimator/scripts/pricebook-add-wood-window-rates.mjs`.

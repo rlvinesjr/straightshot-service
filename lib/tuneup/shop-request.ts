@@ -8,6 +8,7 @@ import { SCHEDULING } from "./booking-config"
 import type { BookingPayload } from "./booking"
 import { loadDoorEstimatorConfig } from "@/lib/door-estimator/config-store"
 import { calculateDoorPrice } from "@/lib/door-estimator/pricing"
+import { quoteShopDoor } from "@/lib/door-estimator/shop-pricing"
 import type { DoorSelection } from "@/lib/door-estimator/types"
 
 export class ShopRequestError extends Error {
@@ -56,7 +57,28 @@ export async function checkShopSnapshot(raw: unknown, data: BookingPayload): Pro
   }
   if (s.visit.date !== data.requestedDate || s.visit.windowId !== data.requestedWindow)
     throw new ShopRequestError("The request summary doesn't match the requested visit.", "invalid_snapshot", 400)
-  if (s.kind === "door" && s.price.amountCents !== null) {
+  // Website door shop (all 24 doors): re-price from the saved Door Pricing and the shared catalog, and make sure the
+  // priced configuration is exactly the one the customer sees in the selections.
+  if (s.kind === "door" && s.price.basis && typeof s.price.basis.model === "string") {
+    const basis = s.price.basis as Record<string, unknown>
+    const model = String(basis.model)
+    let quote
+    try {
+      quote = quoteShopDoor(await loadDoorEstimatorConfig(), model, basis)
+    } catch {
+      throw new ShopRequestError("That door configuration is no longer available online. Please review your request again.", "price_changed", 409)
+    }
+    const sel = quote.selection
+    const expectedSize = sel.sizeState === "selected" ? `${sel.width}x${sel.height}` : sel.sizeState === "unknown" ? "measure" : `incomplete:${sel.width || ""}x${sel.height || ""}`
+    const expectedWindows = !sel.windows ? "none" : sel.quoteWindows ? "requested" : "yes"
+    const expectedInsert = !sel.windows ? "none" : sel.quoteWindows ? "to-confirm" : sel.insert ? sel.insert.code : "plain"
+    if (pick(s, "style") !== model || s.product.id !== "door-" + model || pick(s, "size") !== expectedSize || pick(s, "color") !== sel.color.code
+      || pick(s, "windows") !== expectedWindows || pick(s, "insert") !== expectedInsert)
+      throw new ShopRequestError("The door selections don't match the estimate. Please review your request again.", "price_changed", 409)
+    const cents = quote.retailPrice === null ? null : quote.retailPrice * 100
+    if (cents !== s.price.amountCents) throw new ShopRequestError("The estimated price changed. Please review your request again.", "price_changed", 409)
+  } else if (s.kind === "door" && s.price.amountCents !== null) {
+    // Requests built by the earlier single-door page (Oct 23 2026): legacy calculator basis.
     const config = await loadDoorEstimatorConfig()
     let cents: number
     try {

@@ -55,6 +55,9 @@ export type WindowOption = {
   constructionCodes?: ConstructionCode[]
   glazing: "none" | "plain" | "decorative" | "satin" | "tinted"
   costs: Partial<Record<ConstructionCode, Partial<Record<DoorStyle["windowGroup"], number>>>>
+  /** Vendor per-window cost for wood-finish (Walnut/Driftwood) doors, where the price sheet has its own row.
+   * Used by the website door shop; a missing entry means "price to confirm", never zero. Admin-only like `costs`. */
+  woodCosts?: Partial<Record<ConstructionCode, Partial<Record<DoorStyle["windowGroup"], number>>>>
   websiteEnabled: boolean
   fieldEnabled: boolean
   active: boolean

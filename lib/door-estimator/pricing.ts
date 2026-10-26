@@ -24,6 +24,19 @@ export function roundUpToAtLeast(floor: number, config: DoorEstimatorConfig): nu
   return Math.ceil(floor * 100) / 100
 }
 
+/** The price book's retail rule for one unit, shared by the Field/estimator calculator and the website door shop.
+ * Price = vendor cost × multiplier, but never less than vendor cost + the minimum profit. Rounding can't sneak under
+ * the floor: if the rounded price would, it rounds UP instead. */
+export function retailFromUnitCost(config: DoorEstimatorConfig, unitVendorCost: number) {
+  const minimumProfit = Math.max(0, Number(config.minimumProfit) || 0)
+  const floorPrice = unitVendorCost + minimumProfit
+  const multiplied = unitVendorCost * config.multiplier
+  const unitRawRetailPrice = Math.max(multiplied, floorPrice)
+  let unitRetailPrice = roundRetailPrice(unitRawRetailPrice, config)
+  if (minimumProfit > 0 && unitRetailPrice < floorPrice) unitRetailPrice = roundUpToAtLeast(floorPrice, config)
+  return { unitRawRetailPrice, unitRetailPrice, minimumProfitApplied: minimumProfit > 0 && floorPrice > multiplied }
+}
+
 function windowQuantity(group: string, width: number): number {
   if (group === "short") return width <= 10 ? 4 : width === 12 ? 6 : 8
   return width <= 10 ? 2 : width === 12 ? 3 : 4
@@ -60,15 +73,7 @@ export function calculateDoorPrice(config: DoorEstimatorConfig, selection: DoorS
   const openerVendorCost = opener.costsByHeight[selection.height] ?? 0
   const unitVendorCost = doorVendorCost + windowVendorCost + openerVendorCost
   const totalVendorCost = unitVendorCost * selection.quantity
-  // Price = vendor cost × multiplier, but never less than vendor cost + the minimum profit.
-  // Rounding can't sneak under the floor: if the rounded price would, it rounds UP instead.
-  const minimumProfit = Math.max(0, Number(config.minimumProfit) || 0)
-  const floorPrice = unitVendorCost + minimumProfit
-  const multiplied = unitVendorCost * config.multiplier
-  const unitRawRetailPrice = Math.max(multiplied, floorPrice)
-  let unitRetailPrice = roundRetailPrice(unitRawRetailPrice, config)
-  if (minimumProfit > 0 && unitRetailPrice < floorPrice) unitRetailPrice = roundUpToAtLeast(floorPrice, config)
-  const minimumProfitApplied = minimumProfit > 0 && floorPrice > multiplied
+  const { unitRawRetailPrice, unitRetailPrice, minimumProfitApplied } = retailFromUnitCost(config, unitVendorCost)
   const retailPrice = unitRetailPrice * selection.quantity
   const grossProfit = retailPrice - totalVendorCost
   return { doorVendorCost, windowVendorCost, openerVendorCost, unitVendorCost, quantity: selection.quantity, totalVendorCost, rawRetailPrice: unitRawRetailPrice * selection.quantity, retailPrice, grossProfit, grossMargin: retailPrice ? grossProfit / retailPrice : 0, minimumProfitApplied, pricebookVersion: config.version, pricebookName: config.pricebookName, effectiveDate: config.effectiveDate }
@@ -89,7 +94,8 @@ export function sanitizeCatalog(config: DoorEstimatorConfig, mode: "website" | "
     constructions: config.constructions.filter(x => x.active).map(stripRef),
     styles: config.styles.filter(enabled),
     colors: config.colors.filter(enabled),
-    windows: config.windows.filter(enabled).map(x => ({ ...x, costs: {} })),
+    // Vendor costs never leave the scheduler: blank `costs` and drop `woodCosts` entirely.
+    windows: config.windows.filter(enabled).map(({ woodCosts: _wood, ...x }) => ({ ...x, costs: {} })),
     openers: config.openers.filter(enabled).map(x => stripRef({ ...x, costsByHeight: {} })),
     widths: SUPPORTED_WIDTHS,
     heights: SUPPORTED_HEIGHTS,
