@@ -87,6 +87,9 @@ export type DoorEstimatorConfig = {
   pricebookName: string
   effectiveDate: string
   multiplier: number
+  /** Floor on profit per door (customer price minus door + windows + opener vendor cost), dollars.
+   *  The price is never below vendor cost + this, after rounding. 0 = no floor. Admin-only. */
+  minimumProfit?: number
   roundingMethod: RoundingMethod
   priceEnding: number
   removalIncluded: boolean
@@ -125,12 +128,14 @@ export type PriceBreakdown = {
   retailPrice: number
   grossProfit: number
   grossMargin: number
+  /** true when the minimum profit, not the multiplier, set this price */
+  minimumProfitApplied?: boolean
   pricebookVersion: number
   pricebookName: string
   effectiveDate: string
 }
 
-export type PublicDoorCatalog = Omit<DoorEstimatorConfig, "priceRows" | "multiplier"> & {
+export type PublicDoorCatalog = Omit<DoorEstimatorConfig, "priceRows" | "multiplier" | "minimumProfit"> & {
   widths: DoorSelection["width"][]
   heights: DoorSelection["height"][]
 }

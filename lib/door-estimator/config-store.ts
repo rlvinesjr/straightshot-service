@@ -20,6 +20,8 @@ function normalizeConfig(config: DoorEstimatorConfig): DoorEstimatorConfig {
     items.map(item => ({ ...item, internalRef: defaults.find(d => d.code === item.code)?.internalRef ?? item.internalRef }))
   return {
     ...config,
+    // price books published before the floor existed get the default ($600) until one is set
+    minimumProfit: Number.isFinite(config.minimumProfit) ? Math.max(0, Number(config.minimumProfit)) : DEFAULT_DOOR_ESTIMATOR_CONFIG.minimumProfit,
     distributorName: DEFAULT_DOOR_ESTIMATOR_CONFIG.distributorName,
     internalNotes: DEFAULT_DOOR_ESTIMATOR_CONFIG.internalNotes,
     constructions: refFor(config.constructions, DEFAULT_DOOR_ESTIMATOR_CONFIG.constructions),

@@ -17,6 +17,13 @@ export function roundRetailPrice(value: number, config: DoorEstimatorConfig): nu
   return Math.round(value * 100) / 100
 }
 
+// The smallest price on this book's rounding ladder (…99 / …49 / cents) that is at least `floor`.
+export function roundUpToAtLeast(floor: number, config: DoorEstimatorConfig): number {
+  if (config.roundingMethod === "nearest_hundred_minus_one" || config.roundingMethod === "up_hundred_minus_one") return Math.ceil((floor + 1) / 100) * 100 - 1
+  if (config.roundingMethod === "nearest_fifty_minus_one") return Math.ceil((floor + 1) / 50) * 50 - 1
+  return Math.ceil(floor * 100) / 100
+}
+
 function windowQuantity(group: string, width: number): number {
   if (group === "short") return width <= 10 ? 4 : width === 12 ? 6 : 8
   return width <= 10 ? 2 : width === 12 ? 3 : 4
@@ -53,11 +60,18 @@ export function calculateDoorPrice(config: DoorEstimatorConfig, selection: DoorS
   const openerVendorCost = opener.costsByHeight[selection.height] ?? 0
   const unitVendorCost = doorVendorCost + windowVendorCost + openerVendorCost
   const totalVendorCost = unitVendorCost * selection.quantity
-  const unitRawRetailPrice = unitVendorCost * config.multiplier
-  const unitRetailPrice = roundRetailPrice(unitRawRetailPrice, config)
+  // Price = vendor cost × multiplier, but never less than vendor cost + the minimum profit.
+  // Rounding can't sneak under the floor: if the rounded price would, it rounds UP instead.
+  const minimumProfit = Math.max(0, Number(config.minimumProfit) || 0)
+  const floorPrice = unitVendorCost + minimumProfit
+  const multiplied = unitVendorCost * config.multiplier
+  const unitRawRetailPrice = Math.max(multiplied, floorPrice)
+  let unitRetailPrice = roundRetailPrice(unitRawRetailPrice, config)
+  if (minimumProfit > 0 && unitRetailPrice < floorPrice) unitRetailPrice = roundUpToAtLeast(floorPrice, config)
+  const minimumProfitApplied = minimumProfit > 0 && floorPrice > multiplied
   const retailPrice = unitRetailPrice * selection.quantity
   const grossProfit = retailPrice - totalVendorCost
-  return { doorVendorCost, windowVendorCost, openerVendorCost, unitVendorCost, quantity: selection.quantity, totalVendorCost, rawRetailPrice: unitRawRetailPrice * selection.quantity, retailPrice, grossProfit, grossMargin: retailPrice ? grossProfit / retailPrice : 0, pricebookVersion: config.version, pricebookName: config.pricebookName, effectiveDate: config.effectiveDate }
+  return { doorVendorCost, windowVendorCost, openerVendorCost, unitVendorCost, quantity: selection.quantity, totalVendorCost, rawRetailPrice: unitRawRetailPrice * selection.quantity, retailPrice, grossProfit, grossMargin: retailPrice ? grossProfit / retailPrice : 0, minimumProfitApplied, pricebookVersion: config.version, pricebookName: config.pricebookName, effectiveDate: config.effectiveDate }
 }
 
 export function sanitizeCatalog(config: DoorEstimatorConfig, mode: "website" | "field"): PublicDoorCatalog {

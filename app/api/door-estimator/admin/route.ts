@@ -16,6 +16,8 @@ export async function PATCH(request: Request) {
     requireDoorEstimatorAdmin(request)
     const incoming = (await request.json()) as DoorEstimatorConfig
     if (!Number.isFinite(incoming.multiplier) || incoming.multiplier <= 0) return jsonError("Multiplier must be greater than zero")
+    if (incoming.minimumProfit !== undefined && (!Number.isFinite(incoming.minimumProfit) || incoming.minimumProfit < 0 || incoming.minimumProfit > 100000))
+      return jsonError("Minimum profit must be $0 or more")
     return Response.json(await saveDoorEstimatorConfig(incoming))
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save pricing"

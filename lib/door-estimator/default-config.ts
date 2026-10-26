@@ -29,6 +29,7 @@ export const DEFAULT_DOOR_ESTIMATOR_CONFIG: DoorEstimatorConfig = {
   pricebookName: "Residential Door Pricing - May 2026",
   effectiveDate: "2026-05-04",
   multiplier: 3,
+  minimumProfit: 600,
   roundingMethod: "nearest_hundred_minus_one",
   priceEnding: 99,
   removalIncluded: true,
