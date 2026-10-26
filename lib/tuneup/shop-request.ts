@@ -9,6 +9,7 @@ import type { BookingPayload } from "./booking"
 import { loadDoorEstimatorConfig } from "@/lib/door-estimator/config-store"
 import { calculateDoorPrice } from "@/lib/door-estimator/pricing"
 import { quoteShopDoor } from "@/lib/door-estimator/shop-pricing"
+import { styleFor } from "@/lib/door-estimator/door-catalog.mjs"
 import type { DoorSelection } from "@/lib/door-estimator/types"
 
 export class ShopRequestError extends Error {
@@ -71,7 +72,8 @@ export async function checkShopSnapshot(raw: unknown, data: BookingPayload): Pro
     const sel = quote.selection
     const expectedSize = sel.sizeState === "selected" ? `${sel.width}x${sel.height}` : sel.sizeState === "unknown" ? "measure" : `incomplete:${sel.width || ""}x${sel.height || ""}`
     const expectedWindows = !sel.windows ? "none" : sel.quoteWindows ? "requested" : "yes"
-    const expectedInsert = !sel.windows ? "none" : sel.quoteWindows ? "to-confirm" : sel.insert ? sel.insert.code : "plain"
+    const glass = styleFor(model)?.glass // Flush Panel: one window glass instead of inserts
+    const expectedInsert = !sel.windows ? "none" : sel.quoteWindows ? "to-confirm" : glass ? glass.code : sel.insert ? sel.insert.code : "plain"
     if (pick(s, "style") !== model || s.product.id !== "door-" + model || pick(s, "size") !== expectedSize || pick(s, "color") !== sel.color.code
       || pick(s, "windows") !== expectedWindows || pick(s, "insert") !== expectedInsert)
       throw new ShopRequestError("The door selections don't match the estimate. Please review your request again.", "price_changed", 409)

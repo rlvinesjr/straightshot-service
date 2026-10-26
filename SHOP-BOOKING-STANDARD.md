@@ -91,8 +91,10 @@ Two repositories share two generated modules. Keep them in step.
 **Door pricing rules:** from the vendor price book, mapped in the catalog.
 - **Window counts:** Short Panel is 4/4/5/6/7/7/8/8/8 for 8–18 ft widths. Long Panel Carriage is 2/2/2/3/3/4/4/4/4. Short-grooved carriage is 2/2/2/3/3/3/4/4/4. Long Panel follows the carriage counts.
 - **Window rates:** plain glass uses the PLAIN rate; any insert uses the WITH INSERTS rate.
-- **Always Price to confirm:** Gray, Light Cypress, Oak windows, Flush Panel windows, and any size that isn't fully chosen.
-- **Oak, solid door:** uses the wood-finish base cost.
+- **Flush Panel windows:** one option, Contemporary clear (41" × 7"), priced per window from Door Pricing's `contemporary-clear` row. The count is 2/2/2/3/3/4/4/4/4, the carriage counts.
+- **Colors:** only colors the vendor prices are offered. Gray, Oak and Light Cypress were removed on October 26, 2026 (Light Cypress belongs to the Ozark series, which isn't in the shop).
+- **Always Price to confirm:** "I'm not sure" sizes and any size that isn't fully chosen. Every other configuration shows a price unless pricing is unavailable.
+- **Sizing help:** the size step offers "One-car garage · 9 × 7" and "Two-car garage · 16 × 7" quick picks, plus a width and height tip, and says we always measure on site.
 - **Customer-facing text:** shows style names only, never model numbers. Model numbers appear only in office notes and records.
 
 **Adding a product page:**

@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { DEFAULT_DOOR_ESTIMATOR_CONFIG } from "../lib/door-estimator/default-config"
 import { quoteShopDoor } from "../lib/door-estimator/shop-pricing"
-import { sanitizeCatalog, calculateDoorPrice } from "../lib/door-estimator/pricing"
+import { sanitizeCatalog, calculateDoorPrice, retailFromUnitCost } from "../lib/door-estimator/pricing"
 import { MODELS, WIDTHS, HEIGHTS, STYLES } from "../lib/door-estimator/door-catalog.mjs"
 import type { DoorEstimatorConfig } from "../lib/door-estimator/types"
 
@@ -29,21 +29,57 @@ test("24 doors: 8 styles in Non Insulated, Vinyl Back and Steel Back", () => {
   for (const s of STYLES) assert.deepEqual(Object.values(MODELS).filter(m => m.styleKey === s.key).map(m => m.construction).sort(), ["non", "steel", "vinyl"])
 })
 
+// Owner decisions, Oct 26 2026: Gray, Oak and Light Cypress removed from the shop; Flush Panel windows priced as
+// Contemporary clear (2 / 3 / 4 windows by width). Everything else must still match the approved snapshot exactly.
+const REMOVED_COLORS = ["Gray", "Oak", "Light Cypress"]
+const FLUSH = ["450", "451", "3650"]
+
 test("every combination matches the approved retail snapshot (vendor sheet, 1.8 rule, no minimum profit)", () => {
   const fixture = JSON.parse(readFileSync("scripts/fixtures/door-shop-retail-2026-10-26.json", "utf8")).models as Record<string, { colorFinishes: Record<string, string | null>; retail: Record<string, Record<string, Record<string, number>>> }>
   const config = book()
-  let checked = 0
+  let checked = 0, removed = 0
   for (const [model, f] of Object.entries(fixture)) {
     const m = MODELS[model]
-    for (const [colorName, finish] of Object.entries(f.colorFinishes)) for (const w of WIDTHS) for (const h of HEIGHTS) for (const win of ["none", "plain", "decorative"]) {
-      if (win === "decorative" && !m.inserts.length) continue
-      const expected = finish ? f.retail[finish]?.[`${w}x${h}`]?.[win] ?? null : null
-      const got = price(config, model, { width: w, height: h, color: colorName, windows: win !== "none", insert: win === "decorative" ? m.inserts[0].code : "plain" })
-      assert.equal(got, expected, `${model} ${colorName} ${w}x${h} ${win}`)
-      checked++
+    for (const [colorName, finish] of Object.entries(f.colorFinishes)) {
+      if (REMOVED_COLORS.includes(colorName)) {
+        assert.ok(!m.colors.some(c => c.name === colorName), `${model} ${colorName} removed`)
+        assert.throws(() => price(config, model, { width: 9, height: 7, color: colorName }), Error, `${model} ${colorName} refused`)
+        removed++
+        continue
+      }
+      for (const w of WIDTHS) for (const h of HEIGHTS) for (const win of ["none", "plain", "decorative"]) {
+        if (win === "decorative" && !m.inserts.length) continue
+        if (win === "plain" && FLUSH.includes(model)) continue // newly priced: checked below
+        const expected = finish ? f.retail[finish]?.[`${w}x${h}`]?.[win] ?? null : null
+        const got = price(config, model, { width: w, height: h, color: colorName, windows: win !== "none", insert: win === "decorative" ? m.inserts[0].code : "plain" })
+        assert.equal(got, expected, `${model} ${colorName} ${w}x${h} ${win}`)
+        checked++
+      }
     }
   }
-  assert.ok(checked > 16000, `${checked} checked`)
+  assert.equal(removed, 24 + 4 + 4, "Gray on all 24 doors; Oak and Light Cypress on the 4 steel-back woodgrain doors")
+  assert.ok(checked > 13000, `${checked} checked`)
+})
+
+test("every offered color is priced by Door Pricing (no 'Price to confirm' for a chosen size)", () => {
+  const c = book()
+  for (const [model, m] of Object.entries(MODELS)) for (const color of m.colors) for (const w of WIDTHS) for (const h of HEIGHTS) {
+    assert.ok(color.finish === "standard" || color.finish === "wood", `${model} ${color.name}`)
+    assert.ok(price(c, model, { width: w, height: h, color: color.name }), `${model} ${color.name} ${w}x${h}`)
+    if (m.inserts.length || FLUSH.includes(model)) assert.ok(price(c, model, { width: w, height: h, color: color.name, windows: true }), `${model} ${color.name} ${w}x${h} windows`)
+  }
+})
+
+test("Flush Panel windows: Contemporary clear, per window, 2 / 3 / 4 by width", () => {
+  const c = book()
+  const rate = (code: string) => DEFAULT_DOOR_ESTIMATOR_CONFIG.windows.find(w => w.code === "contemporary-clear")!.costs[code as "essential"]!.contemporary!
+  const row = (code: string, w: number, h: number) => DEFAULT_DOOR_ESTIMATOR_CONFIG.priceRows.find(r => r.active && r.constructionCode === code && r.finishTier === "standard" && r.height === h
+    && r.widthGroup === (w >= 14 && w <= 16 ? "14/15/16" : w >= 17 ? "17/18" : String(w)))!.vendorCost
+  for (const [model, code] of [["450", "essential"], ["451", "comfort"], ["3650", "premium"]] as const) for (const [w, n] of [[8, 2], [9, 2], [10, 2], [12, 3], [14, 3], [15, 4], [16, 4], [17, 4], [18, 4]]) {
+    const expected = retailFromUnitCost(c, Math.round((row(code, w, 7) + rate(code) * n) * 100) / 100).unitRetailPrice
+    assert.equal(price(c, model, { width: w, height: 7, color: "White", windows: true }), expected, `${model} ${w}x7`)
+  }
+  assert.ok(price(c, "450", { width: 16, height: 7, color: "White", windows: true })! > price(c, "450", { width: 16, height: 7, color: "White" })!)
 })
 
 test("the handoff's checked examples", () => {
@@ -73,13 +109,10 @@ test("no size, a partial size and 'not sure' never produce a number", () => {
   for (const sel of [{}, { width: 9 }, { height: 7 }, { width: "", height: "" }, { unknownSize: true, width: 9, height: 7 }]) assert.equal(price(c, "410", { color: "White", ...sel }), null, JSON.stringify(sel))
 })
 
-test("finishes and windows without a vendor price fail closed", () => {
+test("windows without a vendor rate fail closed", () => {
   const c = book()
-  assert.equal(price(c, "410", { width: 9, height: 7, color: "Gray" }), null)
-  assert.equal(price(c, "3640", { width: 9, height: 7, color: "Light Cypress" }), null)
-  assert.equal(price(c, "3640", { width: 9, height: 7, color: "Oak", windows: true }), null, "Oak windows have no vendor rate")
-  assert.ok(price(c, "3640", { width: 9, height: 7, color: "Oak" }), "solid Oak steel-back doors use the wood-finish base cost")
-  assert.equal(price(c, "450", { width: 9, height: 7, color: "White", windows: true }), null, "flush windows are quote-only")
+  const noContemporary = book({ windows: DEFAULT_DOOR_ESTIMATOR_CONFIG.windows.filter(w => w.code !== "contemporary-clear") })
+  assert.equal(price(noContemporary, "450", { width: 9, height: 7, color: "White", windows: true }), null, "missing Contemporary clear rate = Price to confirm")
   assert.ok(price(c, "450", { width: 9, height: 7, color: "White" }))
   const noWood = book({ windows: DEFAULT_DOOR_ESTIMATOR_CONFIG.windows.map(({ woodCosts: _w, ...w }) => w) })
   assert.equal(price(noWood, "441", { width: 9, height: 7, color: "Walnut", windows: true }), null, "missing wood-finish window rate = Price to confirm, never the standard rate")

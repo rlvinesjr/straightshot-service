@@ -17,5 +17,7 @@ Shop product requests from straightshotoverhead.com (openers, doors, and all fut
 - **Endpoint:** `POST /api/door-estimator/shop-quote` prices the website's 24 doors (8 styles × Non Insulated / Vinyl Back / Steel Back).
 - **Rules and costs:** product rules (window families, window counts by width, finishes, inserts) come from `lib/door-estimator/door-catalog.mjs`. That file is a GENERATED copy of the website's `public/assets/door-catalog.js`, so never edit it here. Costs and the retail rule come only from the saved Door Pricing: `retailFromUnitCost` is shared with the Field calculator (multiplier, rounding, minimum profit).
 - **Wood windows:** Walnut/Driftwood carriage windows use `windows[].woodCosts`, the vendor's wood-finish window row. If it's missing, the price is "Price to confirm", never the standard rate.
+- **Flush Panel windows:** priced per window from the `contemporary-clear` window row (Contemporary 41" × 7", clear). The count is 2/3/4 by width, same as carriage. If the row is missing, the price is "Price to confirm".
+- **Colors (owner, Oct 26 2026):** Gray, Oak and Light Cypress were removed from the shop. Every offered color is priced; a chosen size never shows "Price to confirm" unless pricing is down.
 - **Cost privacy:** `sanitizeCatalog` must never expose `costs` or `woodCosts`.
-- **Checks:** run `npm run validate:door-shop` before deploying. It compares every combination with the approved retail fixture and covers the fail-closed rules.
+- **Checks:** run `npm run validate:door-shop` before deploying. It compares every combination with the approved retail fixture (except the owner's Oct 26 changes above, which it checks separately) and covers the fail-closed rules.

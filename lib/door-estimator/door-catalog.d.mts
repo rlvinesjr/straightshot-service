@@ -1,9 +1,9 @@
 // Types for door-catalog.mjs (a generated copy of the website's public/assets/door-catalog.js).
-export type DoorColor = { name: string; code: string; swatch: string; finish: "standard" | "wood" | "oak" | null; note: string | null }
+export type DoorColor = { name: string; code: string; swatch: string; finish: "standard" | "wood" | null; note: string | null }
 export type DoorInsert = { code: string; name: string; label: string; image?: string }
 export type DoorConstructionKey = "non" | "vinyl" | "steel"
 export type DoorConstruction = { key: DoorConstructionKey; code: "essential" | "comfort" | "premium"; slug: string; label: string; short: string; gauge: string; rating: string | null }
-export type DoorStyle = { key: string; slug: string; styleCode: string; name: string; windowFamily: "short" | "long" | "carriage" | null; windowCount: Record<number, number> | null; inserts: DoorInsert[]; quoteWindows: boolean }
+export type DoorStyle = { key: string; slug: string; styleCode: string; name: string; windowFamily: "short" | "long" | "carriage" | "contemporary" | null; windowCount: Record<number, number> | null; inserts: DoorInsert[]; quoteWindows: boolean; glass?: { code: string; name: string; size: string } }
 export type DoorModel = { model: string; styleKey: string; construction: DoorConstructionKey; brochure: string; image: string; colors: DoorColor[]; inserts: DoorInsert[]; example: string }
 export type DoorSelection = {
   model: string

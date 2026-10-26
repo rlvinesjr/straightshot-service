@@ -9,6 +9,7 @@ import { bookingBusinessAlert, bookingReceiptEmail, type BookingRecord } from ".
 import { validateSnapshot, summaryFromBooking, STATUS, NO_PAYMENT } from "../lib/tuneup/summary-core.mjs"
 import { loadDoorEstimatorConfig } from "../lib/door-estimator/config-store"
 import { calculateDoorPrice } from "../lib/door-estimator/pricing"
+import { quoteShopDoor } from "../lib/door-estimator/shop-pricing"
 import type { BookingPayload } from "../lib/tuneup/booking"
 
 let passed = 0
@@ -93,6 +94,27 @@ async function main() {
     const noBasis = doorSnapshot(cents, {})
     ;(noBasis.price as { basis: unknown }).basis = null
     await assert.rejects(() => checkShopSnapshot(noBasis, data), (e: unknown) => e instanceof ShopRequestError)
+  })
+
+  await test("a Flush Panel door with Contemporary clear windows is re-priced and accepted (glass, not inserts)", async () => {
+    const flushBasis = { model: "450", width: 16, height: 7, unknownSize: false, color: "white", windows: true, insert: "plain" }
+    const q = quoteShopDoor(config, "450", flushBasis)
+    assert.ok(q.retailPrice, "Flush windows are priced")
+    const sel = (insertValue: string) => doorSnapshot(q.retailPrice! * 100, {
+      product: { id: "door-450", model: "450", name: "Flush Panel", category: "Garage doors · Non Insulated", includes: "Standard installation.", exclusions: "A replacement opener." },
+      selections: [
+        { id: "style", label: "Door style", value: "450", display: "Flush Panel" },
+        { id: "insulation", label: "Construction", value: "non", display: "Non Insulated" },
+        { id: "size", label: "Door size", value: "16x7", display: "16 × 7 ft" },
+        { id: "color", label: "Color", value: "white", display: "White" },
+        { id: "windows", label: "Windows", value: "yes", display: "Yes" },
+        { id: "insert", label: "Window glass", value: insertValue, display: "Contemporary clear glass" },
+      ],
+      price: { amountCents: q.retailPrice! * 100, wording: "Preliminary installed estimate · final price confirmed on site", source: { name: "Door Pricing", version: 1 }, basis: flushBasis },
+    })
+    const ok = await checkShopSnapshot(sel("contemporary-clear"), data)
+    assert.equal(ok.price.amountCents, q.retailPrice! * 100)
+    await assert.rejects(() => checkShopSnapshot(sel("plain"), data), (e: unknown) => e instanceof ShopRequestError && e.code === "price_changed")
   })
 
   await test("unknown size / price to confirm is accepted without a number", async () => {
