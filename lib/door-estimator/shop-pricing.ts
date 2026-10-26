@@ -4,7 +4,7 @@
 // shared door catalog. Unknown or unpriced configurations return null — never zero, never a guess.
 import type { DoorEstimatorConfig } from "./types"
 import { retailFromUnitCost } from "./pricing"
-import { normalizeDoorSelection, doorVendorCost, UNPRICED_NOTES, MODELS, type DoorSelection } from "./door-catalog.mjs"
+import { normalizeDoorSelection, doorVendorCost, UNPRICED_NOTES, MODELS, CONSTRUCTIONS, styleFor, sizeLabel, windowsLabel, type DoorSelection } from "./door-catalog.mjs"
 
 export type ShopDoorQuote = {
   retailPrice: number | null
@@ -25,4 +25,15 @@ export function quoteShopDoor(config: DoorEstimatorConfig, model: string, rawSel
   const { unitRetailPrice } = retailFromUnitCost(config, cost.unitVendorCost)
   if (!Number.isFinite(unitRetailPrice) || unitRetailPrice <= 0) return { ...base, retailPrice: null, reason: "not-priced", note: "Price to confirm" }
   return { ...base, retailPrice: unitRetailPrice, reason: null, note: "" }
+}
+
+/** Plain names for one configuration (customer-facing words only, no model numbers, no costs). Used by the
+ *  Field app to write the estimate line for a door picked from the website shop. */
+export function shopDoorDescription(model: string, selection: DoorSelection) {
+  const m = MODELS[model], style = styleFor(model), c = CONSTRUCTIONS[m.construction as keyof typeof CONSTRUCTIONS]
+  return {
+    style: style?.name || "", construction: c?.label || "", size: sizeLabel(selection),
+    width: selection.width, height: selection.height, color: selection.color?.name || "",
+    windows: windowsLabel(selection), image: m.image,
+  }
 }

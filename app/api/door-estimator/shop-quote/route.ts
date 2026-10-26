@@ -1,6 +1,6 @@
 import { publicCorsHeaders, jsonError } from "@/lib/door-estimator/api-utils"
 import { loadDoorEstimatorConfig } from "@/lib/door-estimator/config-store"
-import { quoteShopDoor } from "@/lib/door-estimator/shop-pricing"
+import { quoteShopDoor, shopDoorDescription } from "@/lib/door-estimator/shop-pricing"
 
 export async function OPTIONS(request: Request) {
   return new Response(null, { status: 204, headers: publicCorsHeaders(request) })
@@ -16,7 +16,8 @@ export async function POST(request: Request) {
     if (!body || typeof body.model !== "string") return jsonError("Choose an available door.", 400, headers)
     const quote = quoteShopDoor(await loadDoorEstimatorConfig(), body.model, body.selection)
     return Response.json(
-      { retailPrice: quote.retailPrice, note: quote.note, reason: quote.reason, pricebookVersion: quote.pricebookVersion, removalIncluded: quote.removalIncluded },
+      { retailPrice: quote.retailPrice, note: quote.note, reason: quote.reason, pricebookVersion: quote.pricebookVersion, removalIncluded: quote.removalIncluded,
+        door: shopDoorDescription(body.model, quote.selection) },
       { headers: { ...headers, "Cache-Control": "no-store" } },
     )
   } catch (error) {

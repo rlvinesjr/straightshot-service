@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { DEFAULT_DOOR_ESTIMATOR_CONFIG } from "../lib/door-estimator/default-config"
-import { quoteShopDoor } from "../lib/door-estimator/shop-pricing"
+import { quoteShopDoor, shopDoorDescription } from "../lib/door-estimator/shop-pricing"
 import { sanitizeCatalog, calculateDoorPrice, retailFromUnitCost } from "../lib/door-estimator/pricing"
 import { MODELS, WIDTHS, HEIGHTS, STYLES } from "../lib/door-estimator/door-catalog.mjs"
 import type { DoorEstimatorConfig } from "../lib/door-estimator/types"
@@ -91,6 +91,17 @@ test("the handoff's checked examples", () => {
   assert.equal(price(c, "430", { width: 15, height: 7, color: "White", windows: true }), 1899, "430 has three windows at 15 ft")
   assert.equal(price(c, "441", { width: 9, height: 7, color: "Walnut", windows: true, insert: "587" }), 1899)
   assert.equal(price(c, "3640", { width: 16, height: 8, color: "Driftwood", windows: true, insert: "587" }), 4199)
+})
+
+test("the Field app's line description uses plain names only, never model numbers or costs", () => {
+  const q = quoteShopDoor(book(), "441", { width: 16, height: 7, color: "Walnut", windows: true, insert: "587" })
+  const d = shopDoorDescription("441", q.selection)
+  assert.equal(d.style, "Carriage House Long Grooved")
+  assert.equal(d.construction, "Vinyl Back Insulated")
+  assert.equal(d.size, "16 × 7 ft")
+  assert.equal(d.color, "Walnut")
+  assert.equal(d.windows, "Stockbridge #587 inserts")
+  assert.ok(!/441|cost|margin/i.test(JSON.stringify({ ...d, image: "" })))
 })
 
 test("the live minimum-profit rule applies to the shop exactly as to the Field calculator", () => {
