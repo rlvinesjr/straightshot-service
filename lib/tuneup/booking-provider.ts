@@ -104,11 +104,36 @@ export function windowOverlapsBusy(busy: BusyInterval[] | null, date: string, st
   return busy.some(b => b.date === date && b.startMin < we && b.endMin > ws)
 }
 
+// Crew-aware feed (owner decision, Oct 29 2026): the field app also sends who takes jobs (crew), each
+// tech's busy time, jobs nobody on the crew is assigned to, and days closed to online booking. A window
+// stays open while at least one crew member is free after unassigned jobs and website requests that
+// aren't jobs yet are counted. One crew member = exactly the old one-crew rule.
+export type CrewFeed = {
+  busy: BusyInterval[]
+  crew?: number[]
+  techBusy?: (BusyInterval & { tech: number })[]
+  unassigned?: BusyInterval[]
+  closed?: string[]
+}
+
+/** Is this window bookable? `pending` = website requests in this window not yet turned into jobs. */
+export function windowOpen(feed: CrewFeed | null, date: string, startHour: number, pending = 0): boolean {
+  if (!feed) return true // feed unavailable — fail open
+  if (Array.isArray(feed.closed) && feed.closed.includes(date)) return false
+  if (!Array.isArray(feed.crew) || feed.crew.length === 0) return !windowOverlapsBusy(feed.busy, date, startHour)
+  const ws = startHour * 60
+  const we = ws + WINDOW_MINUTES
+  const overlaps = (b: BusyInterval) => b.date === date && b.startMin < we && b.endMin > ws
+  const busyTechs = new Set((feed.techBusy || []).filter(overlaps).map(b => b.tech))
+  const free = feed.crew.filter(t => !busyTechs.has(t)).length - (feed.unassigned || []).filter(overlaps).length - pending
+  return free > 0
+}
+
 const BUSY_CACHE_MS = 60_000
 const BUSY_NEGATIVE_CACHE_MS = 15_000
-let busyCache: { at: number; busy: BusyInterval[] | null } | null = null
+let busyCache: { at: number; busy: CrewFeed | null } | null = null
 
-async function fetchBusyIntervals(): Promise<BusyInterval[] | null> {
+async function fetchBusyIntervals(): Promise<CrewFeed | null> {
   const now = Date.now()
   if (busyCache && now - busyCache.at < (busyCache.busy ? BUSY_CACHE_MS : BUSY_NEGATIVE_CACHE_MS)) {
     return busyCache.busy
@@ -132,8 +157,12 @@ async function fetchBusyIntervals(): Promise<BusyInterval[] | null> {
       cache: "no-store",
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = (await res.json()) as { busy?: BusyInterval[] }
-    const busy = Array.isArray(data.busy) ? data.busy : []
+    const data = (await res.json()) as Partial<CrewFeed>
+    const busy: CrewFeed = {
+      busy: Array.isArray(data.busy) ? data.busy : [],
+      ...(Array.isArray(data.crew) ? { crew: data.crew, techBusy: data.techBusy || [], unassigned: data.unassigned || [], closed: data.closed || [] } : {}),
+      ...(Array.isArray(data.closed) ? { closed: data.closed } : {}),
+    }
     busyCache = { at: now, busy }
     return busy
   } catch (error) {
@@ -143,24 +172,43 @@ async function fetchBusyIntervals(): Promise<BusyInterval[] | null> {
   }
 }
 
+// website requests waiting to become jobs (a confirmed request is a job on the board already)
+const PENDING_STATUSES = ["requested", "pending_confirmation"]
+async function pendingCounts(dates: string[]): Promise<Map<string, number>> {
+  if (!dates.length) return new Map()
+  const rows = await db.tuneUpBooking.groupBy({
+    by: ["requestedDate", "requestedWindow"],
+    where: { requestedDate: { in: dates }, status: { in: PENDING_STATUSES } },
+    _count: { _all: true },
+  })
+  return new Map(rows.map(r => [`${r.requestedDate}|${r.requestedWindow}`, r._count._all]))
+}
+const crewMode = (feed: CrewFeed | null) => !!feed && Array.isArray(feed.crew) && feed.crew.length > 0
+
 class FieldAppProvider extends LocalMockProvider {
   async getAvailability(): Promise<DayAvailability[]> {
     const [days, busy] = await Promise.all([super.getAvailability(), fetchBusyIntervals()])
+    const pending = crewMode(busy) ? await pendingCounts(days.map(d => d.date)) : new Map<string, number>()
     for (const day of days) {
       for (const w of day.windows) {
         const startHour = SCHEDULING.arrivalWindows.find(x => x.id === w.id)?.startHour ?? 0
-        if (w.available && windowOverlapsBusy(busy, day.date, startHour)) w.available = false
+        if (crewMode(busy)) w.available = windowOpen(busy, day.date, startHour, pending.get(`${day.date}|${w.id}`) ?? 0)
+        else if (w.available && !windowOpen(busy, day.date, startHour)) w.available = false
       }
     }
     return days
   }
 
   async reserve(date: string, windowId: string): Promise<boolean> {
-    const open = await super.reserve(date, windowId)
-    if (!open) return false
     const startHour = SCHEDULING.arrivalWindows.find(x => x.id === windowId)?.startHour
     if (startHour === undefined) return false
-    return !windowOverlapsBusy(await fetchBusyIntervals(), date, startHour)
+    const busy = await fetchBusyIntervals()
+    if (crewMode(busy)) {
+      if (!isSelectableDate(date)) return false
+      return windowOpen(busy, date, startHour, (await pendingCounts([date])).get(`${date}|${windowId}`) ?? 0)
+    }
+    if (!(await super.reserve(date, windowId))) return false
+    return windowOpen(busy, date, startHour)
   }
 }
 

@@ -12,7 +12,7 @@ import {
   dateKey,
 } from "../lib/tuneup/booking"
 import { BUSINESS, SCHEDULING, savings } from "../lib/tuneup/booking-config"
-import { windowOverlapsBusy } from "../lib/tuneup/booking-provider"
+import { windowOverlapsBusy, windowOpen } from "../lib/tuneup/booking-provider"
 
 let passed = 0
 function test(name: string, fn: () => void) {
@@ -318,6 +318,22 @@ test("partial one-minute overlap blocks", () => {
 
 test("missing busy feed fails open (null = no constraint)", () => {
   assert.ok(!windowOverlapsBusy(null, "2026-08-06", 8))
+})
+
+test("crew feed: one tech = one-crew rule; two techs keep a window open until both are busy", () => {
+  const job = (tech: number, h: number) => ({ tech, date: "2026-08-06", startMin: h * 60, endMin: h * 60 + 180 })
+  const one = { busy: [], crew: [1], techBusy: [job(1, 8)], unassigned: [], closed: [] }
+  assert.ok(!windowOpen(one, "2026-08-06", 8), "solo: an 8:00 job fills 8-11")
+  assert.ok(windowOpen(one, "2026-08-06", 14))
+  const two = { busy: [], crew: [1, 2], techBusy: [job(1, 8)], unassigned: [], closed: [] }
+  assert.ok(windowOpen(two, "2026-08-06", 8), "second tech still free at 8")
+  assert.ok(!windowOpen(two, "2026-08-06", 8, 1), "a website request not yet a job takes the second spot")
+  assert.ok(!windowOpen({ ...two, techBusy: [job(1, 8), job(2, 8)] }, "2026-08-06", 8), "both busy")
+  assert.ok(!windowOpen({ ...two, unassigned: [{ date: "2026-08-06", startMin: 480, endMin: 660 }] }, "2026-08-06", 8), "an unassigned job takes a spot")
+  assert.ok(!windowOpen({ ...two, techBusy: [], closed: ["2026-08-06"] }, "2026-08-06", 14), "closed day")
+  assert.ok(windowOpen({ busy: [] }, "2026-08-06", 8), "old feed shape still works")
+  assert.ok(!windowOpen({ busy: [{ date: "2026-08-06", startMin: 480, endMin: 660 }] }, "2026-08-06", 8))
+  assert.ok(windowOpen(null, "2026-08-06", 8), "feed down: fail open")
 })
 
 console.log(`\n${passed} tune-up booking checks passed`)
