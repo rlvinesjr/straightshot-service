@@ -2,6 +2,7 @@
 // rules, sanitization, and full server-side validation of a booking request.
 // Dependency-free by design (the repo hand-validates; no zod).
 import { BUSINESS, SCHEDULING } from "./booking-config"
+import { bookingAttribution, type BookingAttribution } from "./attribution"
 
 // A normal online submission starts as "requested" and stays unconfirmed
 // until the office texts/calls the customer ("confirmed" is set manually).
@@ -103,14 +104,8 @@ export type BookingPayload = {
   serviceAreaEligible: boolean
   status: BookingStatus
   source: string | null
-  utmSource: string | null
-  utmMedium: string | null
-  utmCampaign: string | null
-  utmContent: string | null
-  gclid: string | null
-  fbclid: string | null
   consentAccepted: boolean
-}
+} & BookingAttribution
 
 export type ValidationResult =
   | { ok: true; data: BookingPayload }
@@ -241,12 +236,8 @@ export function validateBooking(raw: Record<string, unknown>, kind: "standard" |
       serviceAreaEligible: eligibility === "eligible",
       status,
       source: attribution("source") ?? (kind === "general" ? "booking-page" : "tuneup-landing"),
-      utmSource: attribution("utmSource"),
-      utmMedium: attribution("utmMedium"),
-      utmCampaign: attribution("utmCampaign"),
-      utmContent: attribution("utmContent"),
-      gclid: attribution("gclid"),
-      fbclid: attribution("fbclid"),
+      // which ad: the website's frozen most-recent tagged visit (+ the first one when different); see attribution.ts
+      ...bookingAttribution(raw),
       consentAccepted,
     },
   }

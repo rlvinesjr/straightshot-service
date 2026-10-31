@@ -13,6 +13,7 @@
     "e2e:repair": "node scripts/e2e-repair-lead.mjs",
     "validate:campaign": "node scripts/validate-campaign.mjs",
     "validate:shop": "tsx scripts/validate-shop-request.ts",
+    "validate:attribution": "tsx scripts/validate-ad-attribution.ts",
     "validate:door-shop": "tsx scripts/validate-door-shop.ts"
   },
   "dependencies": {

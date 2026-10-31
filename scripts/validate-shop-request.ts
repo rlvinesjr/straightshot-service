@@ -6,6 +6,7 @@ import { createHash } from "node:crypto"
 import { checkShopSnapshot, finalizeSnapshot, shopKeyValid, validSubmissionId, ShopRequestError } from "../lib/tuneup/shop-request"
 import { summaryEmail } from "../lib/tuneup/summary-email"
 import { bookingBusinessAlert, bookingReceiptEmail, type BookingRecord } from "../lib/tuneup/booking-emails"
+import { bookingAttribution } from "../lib/tuneup/attribution"
 import { validateSnapshot, summaryFromBooking, STATUS, NO_PAYMENT } from "../lib/tuneup/summary-core.mjs"
 import { loadDoorEstimatorConfig } from "../lib/door-estimator/config-store"
 import { calculateDoorPrice } from "../lib/door-estimator/pricing"
@@ -21,7 +22,7 @@ const data: BookingPayload = {
   serviceType: "general", firstName: "Pat", lastName: "Homeowner", phone: "9035550142", email: "pat@example.test", preferredContactMethod: "text",
   serviceAddress: "100 Test Lane", city: "Tyler", state: "TX", zipCode: "75701", doorCount: "", doorOperatingStatus: "", issueType: "general-service",
   specialConditions: "", notes: "DOOR INSPECTION REQUEST: test", requestedDate: "2026-10-27", requestedWindow: "8-11", serviceAreaEligible: true, status: "requested",
-  source: "shop-door", utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null, gclid: null, fbclid: null, consentAccepted: true,
+  source: "shop-door", ...bookingAttribution({}), consentAccepted: true,
 }
 const basis = { quantity: 1, width: 9, height: 7, constructionCode: "essential", styleCode: "traditional-raised", colorCode: "sandstone", windowCode: "decorative", openerCode: "keep-existing" }
 function doorSnapshot(amountCents: number | null, over: Record<string, unknown> = {}) {

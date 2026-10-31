@@ -10,6 +10,7 @@ import { tryEmail } from "@/lib/email"
 import { BUSINESS, rollerPhrase } from "./booking-config"
 import { formatPhone, windowLabel, type BookingStatus } from "./booking"
 import { summaryFromBooking, emailHTML, detailRows } from "./summary-core.mjs"
+import { adSource, fetchAdLabels, DEFAULT_AD_LABELS, type AdLabels } from "./attribution"
 
 const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
@@ -37,7 +38,34 @@ export type BookingRecord = {
   source: string | null
   utmSource: string | null
   utmCampaign: string | null
+  // which ad (all optional, so older callers and records still work)
+  utmMedium?: string | null
+  utmContent?: string | null
+  adCampaignId?: string | null
+  adSetId?: string | null
+  adId?: string | null
+  adPlacement?: string | null
+  adSiteSource?: string | null
+  attributedAt?: Date | string | null
+  fbclid?: string | null
+  gclid?: string | null
+  gbraid?: string | null
+  wbraid?: string | null
   requestSnapshot?: string | null
+}
+
+const centralTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+
+/** Readable "Ad source" for the office. Click IDs are never printed, only whether one is on file. */
+export function adSourceBlock(b: BookingRecord, labels: AdLabels = DEFAULT_AD_LABELS): string {
+  const a = adSource(b, labels)
+  const clicks = [b.fbclid ? "Facebook click ID" : "", b.gclid || b.gbraid || b.wbraid ? "Google click ID" : ""].filter(Boolean)
+  if (!a.recorded && !clicks.length) return `<p style="margin:0 0 12px"><strong>Ad source:</strong> Source not recorded</p>`
+  const rows = [["Platform", a.platform], ["Campaign", a.campaign], ["Ad", a.ad], ["Placement", a.placement]]
+    .map(([k, v]) => `<tr><td style="padding:2px 12px 2px 0;color:#666">${k}</td><td>${esc(v ?? "Not recorded")}</td></tr>`).join("")
+  const foot = [a.at ? `Ad visit ${esc(centralTime(a.at))} (Central)` : "", clicks.length ? `${clicks.join(" and ")} on file` : ""].filter(Boolean).join(" · ")
+  return `<p style="margin:0 0 4px"><strong>Ad source</strong></p><table style="border-collapse:collapse;font-size:14px;margin:0 0 4px">${rows}</table>${foot ? `<p style="margin:0 0 12px;font-size:13px;color:#666">${foot}</p>` : ""}`
 }
 
 const OFFICE_TEL = BUSINESS.phoneHref.replace("tel:", "")
@@ -102,7 +130,7 @@ const STATUS_HEADLINE: Record<string, string> = {
 }
 
 // Alert for the office with everything needed to confirm or triage.
-export function bookingBusinessAlert(b: BookingRecord): { subject: string; html: string } {
+export function bookingBusinessAlert(b: BookingRecord, labels: AdLabels = DEFAULT_AD_LABELS): { subject: string; html: string } {
   const general = b.serviceType === "general"
   const name = [b.firstName, b.lastName].filter(Boolean).join(" ")
   const when = b.requestedDate ? `${prettyDate(b.requestedDate)}, ${windowLabel(b.requestedWindow)}` : "no window selected"
@@ -129,7 +157,8 @@ export function bookingBusinessAlert(b: BookingRecord): { subject: string; html:
         ? `<strong>Issue:</strong> ${b.notes ?? "—"}<br>`
         : `<strong>Residential:</strong> ${b.doorOperatingStatus === "residential" ? "yes" : b.doorOperatingStatus === "not-sure-if-residential" ? "customer wasn't sure" : "—"} · <strong>Doors:</strong> ${b.doorCount === "two-plus" ? "two or more ($129/door)" : b.doorCount ?? "—"}<br>${b.notes ? `<strong>Notes:</strong> ${b.notes}<br>` : ""}`}
       <strong>Status:</strong> ${b.status} · <strong>Ref:</strong> ${b.reference}<br>
-      <strong>Source:</strong> ${b.source ?? "tuneup-landing"}${b.utmSource ? ` · utm_source=${b.utmSource}` : ""}${b.utmCampaign ? ` · utm_campaign=${b.utmCampaign}` : ""}</p>
+      <strong>Page:</strong> ${esc(b.source ?? "tuneup-landing")}</p>
+      ${adSourceBlock(b, labels)}
       <p style="font-size:13px;color:#888">Text or call to confirm, then mark it on the schedule.</p>
     `),
   }
@@ -140,7 +169,8 @@ export async function notifyBooking(b: BookingRecord): Promise<void> {
   // lead-alert address if BOOKING_ALERT_TO is unset.
   const alertTo = process.env.BOOKING_ALERT_TO || process.env.LEAD_ALERT_TO
   if (alertTo) {
-    const alert = bookingBusinessAlert(b)
+    const labels = await fetchAdLabels().catch(() => DEFAULT_AD_LABELS)
+    const alert = bookingBusinessAlert(b, labels)
     void tryEmail(alertTo, alert.subject, alert.html).then(sent =>
       console.log(`[tuneup-booking] ${b.reference} office alert ${sent ? "sent" : "FAILED"}`))
   } else {

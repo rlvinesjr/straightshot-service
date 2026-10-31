@@ -2,6 +2,15 @@ import { db } from "@/lib/db"
 import { jsonError } from "@/lib/door-estimator/api-utils"
 import { requireDoorEstimatorAdmin } from "@/lib/door-estimator/config-store"
 
+function parseFirstTouch(json: string | null) {
+  if (!json) return null
+  try {
+    return JSON.parse(json) as Record<string, string>
+  } catch {
+    return null
+  }
+}
+
 // GET — the ad attribution for one request, for the Field app to copy onto the
 // job it creates from it. Click IDs leave this app ONLY through this key-protected
 // call, server to server; they are never in list payloads, emails or the browser.
@@ -29,5 +38,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ refe
     utmCampaign: b.utmCampaign,
     utmTerm: b.utmTerm,
     utmContent: b.utmContent,
+    fbclid: b.fbclid,
+    adCampaignId: b.adCampaignId,
+    adSetId: b.adSetId,
+    adId: b.adId,
+    adPlacement: b.adPlacement,
+    adSiteSource: b.adSiteSource,
+    attributedAt: b.attributedAt,
+    firstTouch: parseFirstTouch(b.firstTouch),
   })
 }
