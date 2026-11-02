@@ -29,3 +29,4 @@ Shop product requests from straightshotoverhead.com (openers, doors, and all fut
   - "granted" needs the full, matching record. Anything else is "not-provided" (no permission, and not an opt-out). With no key, the columns stay null (unknown).
 - **Field app copy:** the Field app copies the record onto the customer's consent history through the key-protected `GET /api/door-estimator/tuneup-bookings/<ref>/sms-consent` when it creates the job.
 - **This app never sends texts.** Checks: `npm run validate:sms-consent`.
+- **Deploying a schema change:** run `npx prisma generate` after `prisma migrate deploy` and before `npm run build`. A stale client fails the build and leaves no `.next`, which took the scheduler down for about 2 minutes on Nov 2, 2026.
