@@ -14,7 +14,8 @@
     "validate:campaign": "node scripts/validate-campaign.mjs",
     "validate:shop": "tsx scripts/validate-shop-request.ts",
     "validate:attribution": "tsx scripts/validate-ad-attribution.ts",
-    "validate:door-shop": "tsx scripts/validate-door-shop.ts"
+    "validate:door-shop": "tsx scripts/validate-door-shop.ts",
+    "validate:sms-consent": "tsx scripts/validate-sms-consent.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -190,6 +190,18 @@ model TuneUpBooking {
   customerEmailError     String?
   customerEmailSentAt    DateTime?
 
+  // --- optional text-message permission (website bookings only; see lib/tuneup/sms-consent.ts) ---
+  // null = unknown (not a website booking, or an older one). "not-provided" = the box was not checked: no
+  // permission, and NOT an opt-out. Evidence: the exact wording + version shown, the number it applies to, and when.
+  smsConsentStatus       String?
+  smsConsentProgram      String?
+  smsConsentPurposes     String?
+  smsConsentVersion      String?
+  smsConsentText         String?
+  smsConsentPhone        String?
+  smsConsentAt           DateTime?
+  smsConsentMethod       String?
+
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 }

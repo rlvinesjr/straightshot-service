@@ -6,6 +6,7 @@ import { notifyBooking } from "@/lib/tuneup/booking-emails"
 import { checkShopSnapshot, finalizeSnapshot, shopKeyValid, validSubmissionId, ShopRequestError } from "@/lib/tuneup/shop-request"
 import { deliverSummaryEmail } from "@/lib/tuneup/summary-email"
 import { Prisma, type TuneUpBooking } from "@prisma/client"
+import { websiteSmsConsent, type BookingSmsConsent } from "@/lib/tuneup/sms-consent"
 
 export async function OPTIONS(request: Request) {
   return new Response(null, { status: 204, headers: publicCorsHeaders(request) })
@@ -28,7 +29,7 @@ function rateLimited(ip: string): boolean {
   return recent.length > RATE_LIMIT
 }
 
-async function createWithUniqueReference(data: BookingPayload) {
+async function createWithUniqueReference(data: BookingPayload & Partial<BookingSmsConsent>) {
   const prefix = data.serviceType === "general" ? "SR" : "TU"
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -61,7 +62,7 @@ function shopResponse(record: TuneUpBooking, duplicate: boolean, emailStatus: st
   )
 }
 
-async function saveShopRequest(raw: Record<string, unknown>, data: BookingPayload, headers: HeadersInit): Promise<Response> {
+async function saveShopRequest(raw: Record<string, unknown>, data: BookingPayload, sms: BookingSmsConsent | null, headers: HeadersInit): Promise<Response> {
   const submissionId = validSubmissionId(raw.submissionId)
   if (!submissionId) return jsonError("Invalid request", 400, headers)
 
@@ -94,6 +95,7 @@ async function saveShopRequest(raw: Record<string, unknown>, data: BookingPayloa
       record = await db.tuneUpBooking.create({
         data: {
           ...data,
+          ...(sms ?? {}),
           reference,
           createdAt,
           issueType: snapshot.visitType.id,
@@ -156,12 +158,14 @@ export async function POST(request: Request) {
       return Response.json({ error: firstError, errors: result.errors }, { status: 400, headers })
     }
     const data = result.data
+    // Optional text-message permission: evidence only when the website's own server sent it (see sms-consent.ts).
+    const sms = websiteSmsConsent(raw, shopRequestAuthorized, data.phone)
 
     // Website shop requests (openers, doors) carry a structured request snapshot. Separate path: see shop-request.ts.
     if (raw.requestSnapshot !== undefined) {
       if (!shopRequestAuthorized) return jsonError("Shop requests must come from the website", 403, headers)
       if (kind !== "general") return jsonError("Invalid request", 400, headers)
-      return await saveShopRequest(raw, data, headers)
+      return await saveShopRequest(raw, data, sms, headers)
     }
 
     // Duplicate protection: same phone + same date/window (or same phone
@@ -174,6 +178,11 @@ export async function POST(request: Request) {
       orderBy: { createdAt: "desc" },
     })
     if (existing) {
+      // A resend for the same visit that now checks the texting box records that fresh, explicit permission on the
+      // same request. An unchecked resend never changes what is on file.
+      if (sms?.smsConsentStatus === "granted" && existing.smsConsentStatus !== "granted") {
+        await db.tuneUpBooking.update({ where: { id: existing.id }, data: sms })
+      }
       return Response.json({ reference: existing.reference, status: existing.status, duplicate: true }, { status: 200, headers })
     }
 
@@ -188,7 +197,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const record = await createWithUniqueReference(data)
+    const record = await createWithUniqueReference({ ...data, ...(sms ?? {}) })
 
     // Log without unnecessary PII (reference + routing only).
     console.log(`[tuneup-booking] ${record.reference} status=${record.status} window=${record.requestedDate ?? "-"}/${record.requestedWindow ?? "-"} zip=${record.zipCode ?? "-"}`)

@@ -21,3 +21,11 @@ Shop product requests from straightshotoverhead.com (openers, doors, and all fut
 - **Colors (owner, Oct 26 2026):** Gray, Oak and Light Cypress were removed from the shop. Every offered color is priced; a chosen size never shows "Price to confirm" unless pricing is down.
 - **Cost privacy:** `sanitizeCatalog` must never expose `costs` or `woodCosts`.
 - **Checks:** run `npm run validate:door-shop` before deploying. It compares every combination with the approved retail fixture (except the owner's Oct 26 changes above, which it checks separately) and covers the fail-closed rules.
+
+## Text-message permission on website bookings (November 2, 2026)
+
+- **What's stored:** the website sends each booking's optional texting choice as `smsConsent`. `lib/tuneup/sms-consent.ts` stores it on the booking, but only when the request carries the website key (`X-Shop-Booking-Key`, now sent with every website booking).
+  - The `smsConsent*` columns hold the status, wording, version, phone and time.
+  - "granted" needs the full, matching record. Anything else is "not-provided" (no permission, and not an opt-out). With no key, the columns stay null (unknown).
+- **Field app copy:** the Field app copies the record onto the customer's consent history through the key-protected `GET /api/door-estimator/tuneup-bookings/<ref>/sms-consent` when it creates the job.
+- **This app never sends texts.** Checks: `npm run validate:sms-consent`.

@@ -77,5 +77,8 @@ export async function GET(request: Request) {
     customerEmailAttempts: b.customerEmailAttempts,
     customerEmailError: b.customerEmailError,
     customerEmailSentAt: b.customerEmailSentAt,
+    // optional text-message permission on this request: "granted" | "not-provided" | null (unknown). The wording
+    // and other evidence leave only through /sms-consent.
+    smsConsentStatus: b.smsConsentStatus,
   })))
 }
