@@ -11,8 +11,9 @@
 
 export type ArrivalWindow = {
   id: string
-  label: string // shown to the customer, e.g. "8:00 AM – 11:00 AM"
+  label: string // shown to the customer, e.g. "8:00 AM – 10:00 AM"
   startHour: number // 24h, local business time — used to hide past windows today
+  endHour: number // 24h, local business time — the end of the arrival window
 }
 
 export const BUSINESS = {
@@ -56,10 +57,21 @@ export const BUSINESS = {
 export const SCHEDULING = {
   timezoneLabel: "Central Time (your local time in East Texas)",
   timezone: "America/Chicago",
+  // Two-hour arrival windows, 8 AM to 8 PM (owner, Nov 8 2026). Every website booking form offers these.
   arrivalWindows: [
-    { id: "8-11", label: "8:00 AM – 11:00 AM", startHour: 8 },
-    { id: "11-2", label: "11:00 AM – 2:00 PM", startHour: 11 },
-    { id: "2-5", label: "2:00 PM – 5:00 PM", startHour: 14 },
+    { id: "8-10", label: "8:00 AM – 10:00 AM", startHour: 8, endHour: 10 },
+    { id: "10-12", label: "10:00 AM – 12:00 PM", startHour: 10, endHour: 12 },
+    { id: "12-2", label: "12:00 PM – 2:00 PM", startHour: 12, endHour: 14 },
+    { id: "2-4", label: "2:00 PM – 4:00 PM", startHour: 14, endHour: 16 },
+    { id: "4-6", label: "4:00 PM – 6:00 PM", startHour: 16, endHour: 18 },
+    { id: "6-8", label: "6:00 PM – 8:00 PM", startHour: 18, endHour: 20 },
+  ] as ArrivalWindow[],
+  // The three-hour windows used before Nov 8 2026. Never offered again, but requests made with them keep their
+  // labels and still count against the new windows they overlap (so nothing is double-booked during the switch).
+  legacyArrivalWindows: [
+    { id: "8-11", label: "8:00 AM – 11:00 AM", startHour: 8, endHour: 11 },
+    { id: "11-2", label: "11:00 AM – 2:00 PM", startHour: 11, endHour: 14 },
+    { id: "2-5", label: "2:00 PM – 5:00 PM", startHour: 14, endHour: 17 },
   ] as ArrivalWindow[],
   // Mock-provider availability rules (see lib/tuneup/booking-provider.ts).
   // These do NOT sync with a real calendar — requests are confirmed by phone.

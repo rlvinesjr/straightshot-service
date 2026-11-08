@@ -1,7 +1,7 @@
 // Booking domain model for the $129 Tune-Up landing page: statuses, routing
 // rules, sanitization, and full server-side validation of a booking request.
 // Dependency-free by design (the repo hand-validates; no zod).
-import { BUSINESS, SCHEDULING } from "./booking-config"
+import { BUSINESS, SCHEDULING, type ArrivalWindow } from "./booking-config"
 import { bookingAttribution, type BookingAttribution } from "./attribution"
 
 // A normal online submission starts as "requested" and stays unconfirmed
@@ -77,8 +77,19 @@ export function isKnownWindow(id: string): boolean {
   return SCHEDULING.arrivalWindows.some(w => w.id === id)
 }
 
+/** Any window a request may carry: the current ones, or a pre-Nov 8 2026 three-hour one. */
+export function anyWindow(id: string | null): ArrivalWindow | undefined {
+  return [...SCHEDULING.arrivalWindows, ...SCHEDULING.legacyArrivalWindows].find(w => w.id === id)
+}
+
 export function windowLabel(id: string | null): string {
-  return SCHEDULING.arrivalWindows.find(w => w.id === id)?.label ?? id ?? "—"
+  return anyWindow(id)?.label ?? id ?? "—"
+}
+
+/** Do two windows (current or legacy) share any time? Used to count existing requests against the current windows. */
+export function windowsOverlap(a: string | null, b: string | null): boolean {
+  const x = anyWindow(a), y = anyWindow(b)
+  return !!x && !!y && x.startHour < y.endHour && y.startHour < x.endHour
 }
 
 // ---- request validation -------------------------------------------------

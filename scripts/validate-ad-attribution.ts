@@ -30,7 +30,7 @@ function firstDate(): string {
 const base = {
   kind: "general", firstName: "Pat", lastName: "Test", fullName: "Pat Test", phone: "9035550142", email: "pat@example.test",
   serviceAddress: "100 Test Lane", city: "Tyler", state: "TX", zipCode: "75701", notes: "Door is noisy", issue: "Door is noisy",
-  requestedDate: firstDate(), requestedWindow: "8-11", consentAccepted: true,
+  requestedDate: firstDate(), requestedWindow: "8-10", consentAccepted: true,
 }
 
 test("each of the six ads is stored with its labels, Meta IDs, placement, time and the whole click ID", () => {

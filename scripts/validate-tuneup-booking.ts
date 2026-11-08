@@ -12,7 +12,8 @@ import {
   dateKey,
 } from "../lib/tuneup/booking"
 import { BUSINESS, SCHEDULING, savings } from "../lib/tuneup/booking-config"
-import { windowOverlapsBusy, windowOpen } from "../lib/tuneup/booking-provider"
+import { windowOverlapsBusy, windowOpen, overlapCount, WINDOW_MINUTES } from "../lib/tuneup/booking-provider"
+import { windowLabel, windowsOverlap } from "../lib/tuneup/booking"
 
 let passed = 0
 function test(name: string, fn: () => void) {
@@ -296,7 +297,7 @@ test("references look like TU-XXXXX and avoid ambiguous characters", () => {
 // ---- dispatch-board overlap math (one-crew rule) ---------------------------
 
 test("dispatch job overlapping a window blocks it", () => {
-  // job 9:00-12:00 blocks the 8-11 window (startHour 8) and the 11-2 window (startHour 11)
+  // job 9:00-12:00 blocks the 8-10 window (startHour 8) and anything starting at 11
   const busy = [{ date: "2026-08-06", startMin: 540, endMin: 720 }]
   assert.ok(windowOverlapsBusy(busy, "2026-08-06", 8))
   assert.ok(windowOverlapsBusy(busy, "2026-08-06", 11))
@@ -312,7 +313,7 @@ test("touching intervals do not block (job ends exactly when window starts)", ()
 })
 
 test("partial one-minute overlap blocks", () => {
-  const busy = [{ date: "2026-08-06", startMin: 8 * 60 + 179, endMin: 8 * 60 + 240 }]
+  const busy = [{ date: "2026-08-06", startMin: 8 * 60 + 119, endMin: 8 * 60 + 240 }]
   assert.ok(windowOverlapsBusy(busy, "2026-08-06", 8))
 })
 
@@ -323,7 +324,7 @@ test("missing busy feed fails open (null = no constraint)", () => {
 test("crew feed: one tech = one-crew rule; two techs keep a window open until both are busy", () => {
   const job = (tech: number, h: number) => ({ tech, date: "2026-08-06", startMin: h * 60, endMin: h * 60 + 180 })
   const one = { busy: [], crew: [1], techBusy: [job(1, 8)], unassigned: [], closed: [] }
-  assert.ok(!windowOpen(one, "2026-08-06", 8), "solo: an 8:00 job fills 8-11")
+  assert.ok(!windowOpen(one, "2026-08-06", 8), "solo: an 8:00 job fills 8-10")
   assert.ok(windowOpen(one, "2026-08-06", 14))
   const two = { busy: [], crew: [1, 2], techBusy: [job(1, 8)], unassigned: [], closed: [] }
   assert.ok(windowOpen(two, "2026-08-06", 8), "second tech still free at 8")
@@ -334,6 +335,43 @@ test("crew feed: one tech = one-crew rule; two techs keep a window open until bo
   assert.ok(windowOpen({ busy: [] }, "2026-08-06", 8), "old feed shape still works")
   assert.ok(!windowOpen({ busy: [{ date: "2026-08-06", startMin: 480, endMin: 660 }] }, "2026-08-06", 8))
   assert.ok(windowOpen(null, "2026-08-06", 8), "feed down: fail open")
+})
+
+// ---- two-hour arrival windows (owner, Nov 8 2026) ---------------------------
+
+test("six two-hour windows from 8 AM, the last one 6:00 – 8:00 PM", () => {
+  assert.deepEqual(SCHEDULING.arrivalWindows.map(w => w.id), ["8-10", "10-12", "12-2", "2-4", "4-6", "6-8"])
+  for (const w of SCHEDULING.arrivalWindows) assert.equal(w.endHour - w.startHour, 2, w.id)
+  assert.equal(SCHEDULING.arrivalWindows[0].label, "8:00 AM – 10:00 AM")
+  assert.equal(SCHEDULING.arrivalWindows[SCHEDULING.arrivalWindows.length - 1].label, "6:00 PM – 8:00 PM")
+  assert.equal(WINDOW_MINUTES, 120)
+})
+
+test("old three-hour windows: never offered again, but old requests keep their labels", () => {
+  for (const old of ["8-11", "11-2", "2-5"]) assert.ok(!isKnownWindow(old), old)
+  assert.equal(windowLabel("8-11"), "8:00 AM – 11:00 AM")
+  assert.equal(windowLabel("2-5"), "2:00 PM – 5:00 PM")
+  assert.equal(windowLabel("6-8"), "6:00 PM – 8:00 PM")
+})
+
+test("an old 8-11 request still fills the new 8-10 and 10-12 windows it overlaps (no double booking)", () => {
+  assert.ok(windowsOverlap("8-11", "8-10") && windowsOverlap("8-11", "10-12"))
+  assert.ok(!windowsOverlap("8-11", "12-2"), "11 AM end vs 12 PM start: no overlap")
+  assert.ok(windowsOverlap("2-5", "4-6") && !windowsOverlap("2-5", "6-8"))
+  const rows = [
+    { requestedDate: "2026-11-12", requestedWindow: "8-11", _count: { _all: 1 } },
+    { requestedDate: "2026-11-12", requestedWindow: "8-10", _count: { _all: 1 } },
+    { requestedDate: "2026-11-13", requestedWindow: "8-10", _count: { _all: 5 } },
+  ]
+  assert.equal(overlapCount(rows, "2026-11-12", "8-10"), 2)
+  assert.equal(overlapCount(rows, "2026-11-12", "10-12"), 1)
+  assert.equal(overlapCount(rows, "2026-11-12", "6-8"), 0)
+})
+
+test("the 6-8 PM window checks its own two hours against the crew calendar", () => {
+  const busy = [{ date: "2026-11-12", startMin: 19 * 60, endMin: 20 * 60 }]
+  assert.ok(windowOverlapsBusy(busy, "2026-11-12", 18, 120))
+  assert.ok(!windowOverlapsBusy(busy, "2026-11-12", 16, 120), "a 7 PM job leaves 4-6 open")
 })
 
 console.log(`\n${passed} tune-up booking checks passed`)

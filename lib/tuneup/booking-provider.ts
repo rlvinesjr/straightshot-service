@@ -15,7 +15,18 @@
 // flow submits a *request*, never a guaranteed slot.
 import { db } from "@/lib/db"
 import { SCHEDULING } from "./booking-config"
-import { dateKey, isSelectableDate } from "./booking"
+import { dateKey, isSelectableDate, windowsOverlap } from "./booking"
+
+// Open requests on a day, counted against a current window. A request counts against every current window it
+// overlaps, so requests made with the old three-hour windows (before Nov 8 2026) still fill the new two-hour ones.
+type WindowRow = { requestedDate: string | null; requestedWindow: string | null; _count: { _all: number } }
+export function overlapCount(rows: WindowRow[], date: string, windowId: string): number {
+  return rows.reduce((n, r) => n + (r.requestedDate === date && windowsOverlap(r.requestedWindow, windowId) ? r._count._all : 0), 0)
+}
+const windowMinutes = (windowId: string) => {
+  const w = SCHEDULING.arrivalWindows.find(x => x.id === windowId)
+  return w ? (w.endHour - w.startHour) * 60 : WINDOW_MINUTES
+}
 
 export type DayAvailability = {
   date: string // YYYY-MM-DD
@@ -53,8 +64,6 @@ class LocalMockProvider implements BookingProvider {
       where: { requestedDate: { in: candidates }, status: { in: OPEN_STATUSES } },
       _count: { _all: true },
     })
-    const counts = new Map(booked.map(b => [`${b.requestedDate}|${b.requestedWindow}`, b._count._all]))
-
     for (const key of candidates) {
       const [y, m, d] = key.split("-").map(Number)
       const date = new Date(y, m - 1, d)
@@ -64,7 +73,7 @@ class LocalMockProvider implements BookingProvider {
         windows: SCHEDULING.arrivalWindows.map(w => ({
           id: w.id,
           label: w.label,
-          available: (counts.get(`${key}|${w.id}`) ?? 0) < SCHEDULING.requestsPerWindow,
+          available: overlapCount(booked, key, w.id) < SCHEDULING.requestsPerWindow,
         })),
       })
     }
@@ -73,10 +82,12 @@ class LocalMockProvider implements BookingProvider {
 
   async reserve(date: string, windowId: string): Promise<boolean> {
     if (!isSelectableDate(date)) return false
-    const open = await db.tuneUpBooking.count({
-      where: { requestedDate: date, requestedWindow: windowId, status: { in: OPEN_STATUSES } },
+    const rows = await db.tuneUpBooking.groupBy({
+      by: ["requestedDate", "requestedWindow"],
+      where: { requestedDate: date, status: { in: OPEN_STATUSES } },
+      _count: { _all: true },
     })
-    return open < SCHEDULING.requestsPerWindow
+    return overlapCount(rows, date, windowId) < SCHEDULING.requestsPerWindow
   }
 }
 
@@ -95,12 +106,13 @@ class LocalMockProvider implements BookingProvider {
 
 export type BusyInterval = { date: string; startMin: number; endMin: number }
 
-export const WINDOW_MINUTES = 180
+// default arrival-window length (two-hour windows since Nov 8 2026); each window passes its own length
+export const WINDOW_MINUTES = 120
 
-export function windowOverlapsBusy(busy: BusyInterval[] | null, date: string, startHour: number): boolean {
+export function windowOverlapsBusy(busy: BusyInterval[] | null, date: string, startHour: number, minutes = WINDOW_MINUTES): boolean {
   if (!busy) return false // feed unavailable — fail open
   const ws = startHour * 60
-  const we = ws + WINDOW_MINUTES
+  const we = ws + minutes
   return busy.some(b => b.date === date && b.startMin < we && b.endMin > ws)
 }
 
@@ -117,12 +129,12 @@ export type CrewFeed = {
 }
 
 /** Is this window bookable? `pending` = website requests in this window not yet turned into jobs. */
-export function windowOpen(feed: CrewFeed | null, date: string, startHour: number, pending = 0): boolean {
+export function windowOpen(feed: CrewFeed | null, date: string, startHour: number, pending = 0, minutes = WINDOW_MINUTES): boolean {
   if (!feed) return true // feed unavailable — fail open
   if (Array.isArray(feed.closed) && feed.closed.includes(date)) return false
-  if (!Array.isArray(feed.crew) || feed.crew.length === 0) return !windowOverlapsBusy(feed.busy, date, startHour)
+  if (!Array.isArray(feed.crew) || feed.crew.length === 0) return !windowOverlapsBusy(feed.busy, date, startHour, minutes)
   const ws = startHour * 60
-  const we = ws + WINDOW_MINUTES
+  const we = ws + minutes
   const overlaps = (b: BusyInterval) => b.date === date && b.startMin < we && b.endMin > ws
   const busyTechs = new Set((feed.techBusy || []).filter(overlaps).map(b => b.tech))
   const free = feed.crew.filter(t => !busyTechs.has(t)).length - (feed.unassigned || []).filter(overlaps).length - pending
@@ -181,7 +193,8 @@ async function pendingCounts(dates: string[]): Promise<Map<string, number>> {
     where: { requestedDate: { in: dates }, status: { in: PENDING_STATUSES } },
     _count: { _all: true },
   })
-  return new Map(rows.map(r => [`${r.requestedDate}|${r.requestedWindow}`, r._count._all]))
+  // keyed by date|current window; an older three-hour request counts against each two-hour window it overlaps
+  return new Map(dates.flatMap(d => SCHEDULING.arrivalWindows.map(w => [`${d}|${w.id}`, overlapCount(rows, d, w.id)] as const)))
 }
 const crewMode = (feed: CrewFeed | null) => !!feed && Array.isArray(feed.crew) && feed.crew.length > 0
 
@@ -192,8 +205,9 @@ class FieldAppProvider extends LocalMockProvider {
     for (const day of days) {
       for (const w of day.windows) {
         const startHour = SCHEDULING.arrivalWindows.find(x => x.id === w.id)?.startHour ?? 0
-        if (crewMode(busy)) w.available = windowOpen(busy, day.date, startHour, pending.get(`${day.date}|${w.id}`) ?? 0)
-        else if (w.available && !windowOpen(busy, day.date, startHour)) w.available = false
+        const minutes = windowMinutes(w.id)
+        if (crewMode(busy)) w.available = windowOpen(busy, day.date, startHour, pending.get(`${day.date}|${w.id}`) ?? 0, minutes)
+        else if (w.available && !windowOpen(busy, day.date, startHour, 0, minutes)) w.available = false
       }
     }
     return days
@@ -203,12 +217,13 @@ class FieldAppProvider extends LocalMockProvider {
     const startHour = SCHEDULING.arrivalWindows.find(x => x.id === windowId)?.startHour
     if (startHour === undefined) return false
     const busy = await fetchBusyIntervals()
+    const minutes = windowMinutes(windowId)
     if (crewMode(busy)) {
       if (!isSelectableDate(date)) return false
-      return windowOpen(busy, date, startHour, (await pendingCounts([date])).get(`${date}|${windowId}`) ?? 0)
+      return windowOpen(busy, date, startHour, (await pendingCounts([date])).get(`${date}|${windowId}`) ?? 0, minutes)
     }
     if (!(await super.reserve(date, windowId))) return false
-    return windowOpen(busy, date, startHour)
+    return windowOpen(busy, date, startHour, 0, minutes)
   }
 }
 

@@ -234,10 +234,12 @@ export default function BookingFlow({ variant = "tuneup" }: { variant?: BookingV
 
 function icsHref(booking: ConfirmedBooking): string {
   const [y, m, d] = booking.date.split("-").map(Number)
-  const startHour = SCHEDULING.arrivalWindows.find(w => w.id === booking.window)?.startHour ?? 8
+  const win = SCHEDULING.arrivalWindows.find(w => w.id === booking.window)
+  const startHour = win?.startHour ?? 8
+  const endHour = win?.endHour ?? startHour + 2
   const pad = (n: number) => String(n).padStart(2, "0")
   const stamp = `${y}${pad(m)}${pad(d)}T${pad(startHour)}0000`
-  const end = `${y}${pad(m)}${pad(d)}T${pad(startHour + 3)}0000`
+  const end = `${y}${pad(m)}${pad(d)}T${pad(endHour)}0000`
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",

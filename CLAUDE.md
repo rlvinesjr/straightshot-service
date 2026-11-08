@@ -30,3 +30,12 @@ Shop product requests from straightshotoverhead.com (openers, doors, and all fut
 - **Field app copy:** the Field app copies the record onto the customer's consent history through the key-protected `GET /api/door-estimator/tuneup-bookings/<ref>/sms-consent` when it creates the job.
 - **This app never sends texts.** Checks: `npm run validate:sms-consent`.
 - **Deploying a schema change:** run `npx prisma generate` after `prisma migrate deploy` and before `npm run build`. A stale client fails the build and leaves no `.next`, which took the scheduler down for about 2 minutes on Nov 2, 2026.
+
+## Two-hour arrival windows (November 8, 2026)
+
+- **Windows:** every website booking form offers six two-hour arrival windows, 8–10 AM through 6–8 PM (`SCHEDULING.arrivalWindows`, owner's request).
+- **The old three-hour windows** (8–11, 11–2, 2–5) are in `legacyArrivalWindows`:
+  - They are never offered again.
+  - Older requests keep their labels.
+  - They still count against the new windows they overlap (`overlapCount`), so nothing is double-booked during the switch.
+- **Field app:** it turns each window into a job start time plus a two-hour window, and the old ones into three hours (`server.js`, create-job).
